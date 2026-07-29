@@ -134,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "16";
+const APP_VERSION = "17";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -1761,7 +1761,7 @@ const closeAppointmentDialogCore=closeAppointmentDialog;
 closeAppointmentDialog=function(){pendingInboxAppointmentId='';closeAppointmentDialogCore();};
 
 
-/* ===== V16 authoritative Lists subsystem =====
+/* ===== V17 authoritative Lists subsystem =====
    Lists are rebuilt from live data and every control receives a real
    addEventListener handler. No dynamically-created inline onclick code is used. */
 function actionButton(label, handler, className = '') {
@@ -1967,9 +1967,160 @@ function renderCleaning() {
   });
 }
 
-const originalRenderAllV16 = renderAll;
+const originalRenderAllV17 = renderAll;
 renderAll = function() {
-  originalRenderAllV16();
+  originalRenderAllV17();
   refreshListsImmediately();
 };
 
+
+/* ===== V17 definitive Lists controller =====
+   One renderer, one delegated click/change controller, and an automatic
+   post-save refresh. This block intentionally overrides older list code. */
+(function installV17ListsController(){
+  const listRootIds = ['todoArea','projectsArea','cleaningArea'];
+
+  function isListsVisible(){
+    const section = document.querySelector('[data-view="tasks"]');
+    return !!section && !section.hidden;
+  }
+
+  function v17Button(label, action, ids={}, danger=false){
+    const b=document.createElement('button');
+    b.type='button'; b.textContent=label; b.dataset.v17Action=action;
+    Object.entries(ids).forEach(([k,v])=>b.dataset[k]=String(v));
+    if(danger)b.className='danger-button';
+    return b;
+  }
+
+  function v17RenderTodos(){
+    const area=document.getElementById('todoArea'); if(!area)return;
+    area.replaceChildren();
+    const items=[...(data.todos||[])].sort(sortByDueDate);
+    if(!items.length){area.innerHTML='<div class="empty-state">No to-do items yet.</div>';return;}
+    items.forEach(todo=>{
+      const card=document.createElement('div'); card.className=`list-card ${todo.completed?'completed-card':''}`;
+      const top=document.createElement('div'); top.className='card-top';
+      const copy=document.createElement('div');
+      copy.innerHTML=`<div class="card-title">${escapeHtml(todo.name||'Untitled to-do')}</div><div class="card-meta">${escapeHtml(getTimingText(todo)||'No date')}</div><div class="card-details">${escapeHtml(todo.details||'')}</div>`;
+      const badge=document.createElement('span'); badge.className='badge'; badge.textContent=todo.completed?'Completed':'Active';
+      top.append(copy,badge); card.append(top);
+      const actions=document.createElement('div'); actions.className='card-actions';
+      actions.append(v17Button(todo.completed?'Mark active':'Complete','todo-toggle',{id:todo.id}),v17Button('Edit','todo-edit',{id:todo.id}),v17Button('Delete','todo-delete',{id:todo.id},true));
+      card.append(actions); area.append(card);
+    });
+  }
+
+  function v17RenderProjects(){
+    const area=document.getElementById('projectsArea'); if(!area)return;
+    area.replaceChildren();
+    const projects=[...(data.projects||[])].sort(sortByDueDate);
+    if(!projects.length){area.innerHTML='<div class="empty-state">No projects yet.</div>';return;}
+    projects.forEach(project=>{
+      const steps=Array.isArray(project.steps)?project.steps:[];
+      const complete=steps.length>0&&steps.every(s=>s.completed);
+      project.completed=complete;
+      const card=document.createElement('div'); card.className=`list-card ${complete?'completed-card':''}`;
+      const top=document.createElement('div'); top.className='card-top';
+      const copy=document.createElement('div'); copy.innerHTML=`<div class="card-title">${escapeHtml(project.name||'Untitled project')}</div><div class="card-details">${escapeHtml(project.details||'')}</div>`;
+      const badge=document.createElement('span'); badge.className='badge'; badge.textContent=complete?'Completed':`${steps.filter(s=>s.completed).length} of ${steps.length} steps`;
+      top.append(copy,badge); card.append(top);
+      const stepsBox=document.createElement('div'); stepsBox.className='steps-list';
+      if(!steps.length)stepsBox.innerHTML='<div class="empty-state">No steps added yet.</div>';
+      steps.forEach((step,i)=>{
+        const row=document.createElement('div'); row.className=`list-card ${step.completed?'completed-card':''}`;
+        const label=document.createElement('label'); label.className='step-row';
+        const check=document.createElement('input'); check.type='checkbox'; check.checked=!!step.completed; check.dataset.v17Change='step-toggle'; check.dataset.parentId=project.id; check.dataset.id=step.id;
+        const text=document.createElement('span'); text.innerHTML=`<strong>${i+1}. ${escapeHtml(step.name||'Untitled step')}</strong>${step.dueDate?`<br><span class="card-meta">Due ${formatDate(step.dueDate)}</span>`:''}`;
+        label.append(check,text);
+        const actions=document.createElement('div'); actions.className='card-actions';
+        actions.append(v17Button(step.completed?'Mark active':'Complete step','step-toggle',{parentId:project.id,id:step.id}),v17Button('Edit step','step-edit',{parentId:project.id,id:step.id}),v17Button('Delete step','step-delete',{parentId:project.id,id:step.id},true));
+        row.append(label,actions); stepsBox.append(row);
+      });
+      card.append(stepsBox);
+      const actions=document.createElement('div'); actions.className='card-actions';
+      actions.append(v17Button('Edit project','project-edit',{id:project.id}),v17Button('Add step','project-add-step',{id:project.id}),v17Button('Delete project','project-delete',{id:project.id},true));
+      card.append(actions); area.append(card);
+    });
+  }
+
+  function v17RenderCleaning(){
+    const area=document.getElementById('cleaningArea'); if(!area)return;
+    area.replaceChildren();
+    const items=[...(data.cleaningTasks||[])].sort((a,b)=>String(a.nextDue||'').localeCompare(String(b.nextDue||'')));
+    if(!items.length){area.innerHTML='<div class="empty-state">No cleaning tasks yet.</div>';return;}
+    items.forEach(item=>{
+      const due=isDueTodayOrEarlier(item.nextDue);
+      const card=document.createElement('div'); card.className=`list-card cleaning-card ${due?'due-today':''}`;
+      const top=document.createElement('div'); top.className='card-top';
+      const copy=document.createElement('div'); copy.innerHTML=`<div class="card-title">${escapeHtml(item.name||'Untitled cleaning task')}</div><div class="card-meta">${escapeHtml(item.room||'General')} · ${escapeHtml(frequencyLabel(item.frequency||'weekly'))}</div><div class="cleaning-frequency">Next due ${item.nextDue?formatDate(item.nextDue):'not set'}</div><div class="card-details">${escapeHtml(item.details||'')}</div>`;
+      const badge=document.createElement('span'); badge.className='badge'; badge.textContent=due?'Due now':'Scheduled'; top.append(copy,badge);
+      const actions=document.createElement('div'); actions.className='card-actions';
+      actions.append(v17Button('Complete','cleaning-complete',{id:item.id}),v17Button('Edit','cleaning-edit',{id:item.id}),v17Button('Delete','cleaning-delete',{id:item.id},true));
+      card.append(top,actions); area.append(card);
+    });
+  }
+
+  function v17RenderLists(){
+    v17RenderTodos(); v17RenderProjects(); v17RenderCleaning();
+    if(typeof renderAppointments==='function')renderAppointments();
+    if(typeof renderInbox==='function')renderInbox();
+    if(typeof renderWaiting==='function')renderWaiting();
+    if(typeof renderAnnualDates==='function')renderAnnualDates();
+    if(typeof updateListHubCounts==='function')updateListHubCounts();
+  }
+
+  window.renderTodos=v17RenderTodos;
+  window.renderProjects=v17RenderProjects;
+  window.renderCleaning=v17RenderCleaning;
+  window.refreshListsImmediately=v17RenderLists;
+
+  function saveAndRefresh(message=''){
+    saveData();
+    if(typeof renderFocusToday==='function')renderFocusToday();
+    if(typeof renderProjectNextActions==='function')renderProjectNextActions();
+    if(typeof renderTodayReminders==='function')renderTodayReminders();
+    if(typeof renderWeekly==='function')renderWeekly();
+    v17RenderLists();
+    if(message)showSaved(message);
+  }
+
+  document.addEventListener('click',event=>{
+    const b=event.target.closest('[data-v17-action]'); if(!b)return;
+    event.preventDefault(); event.stopPropagation();
+    const a=b.dataset.v17Action,id=b.dataset.id,parent=b.dataset.parentId;
+    if(a==='todo-toggle'){const x=data.todos.find(v=>v.id===id);if(x)x.completed=!x.completed;saveAndRefresh();}
+    else if(a==='todo-edit')editTodo(id);
+    else if(a==='todo-delete'){const x=data.todos.find(v=>v.id===id);if(x&&confirm(`Delete “${x.name}”?`)){data.todos=data.todos.filter(v=>v.id!==id);saveAndRefresh('To-do deleted');}}
+    else if(a==='project-edit')editProject(id);
+    else if(a==='project-add-step')openAddDialog('step',id);
+    else if(a==='project-delete'){const x=data.projects.find(v=>v.id===id);if(x&&confirm(`Delete project “${x.name}”?`)){data.projects=data.projects.filter(v=>v.id!==id);saveAndRefresh('Project deleted');}}
+    else if(a==='step-toggle'){const p=data.projects.find(v=>v.id===parent);const s=p?.steps?.find(v=>v.id===id);if(s){s.completed=!s.completed;p.completed=p.steps.length>0&&p.steps.every(v=>v.completed);saveAndRefresh();}}
+    else if(a==='step-edit')editStep(parent,id);
+    else if(a==='step-delete'){const p=data.projects.find(v=>v.id===parent);const s=p?.steps?.find(v=>v.id===id);if(s&&confirm(`Delete step “${s.name}”?`)){p.steps=p.steps.filter(v=>v.id!==id);p.completed=p.steps.length>0&&p.steps.every(v=>v.completed);saveAndRefresh('Project step deleted');}}
+    else if(a==='cleaning-complete'){const x=data.cleaningTasks.find(v=>v.id===id);if(x){const today=localDateKey();x.lastCompleted=today;x.nextDue=nextCleaningDate(x.nextDue||today,x.frequency||'weekly');saveAndRefresh('Cleaning task completed');}}
+    else if(a==='cleaning-edit')editCleaning(id);
+    else if(a==='cleaning-delete'){const x=data.cleaningTasks.find(v=>v.id===id);if(x&&confirm(`Delete “${x.name}”?`)){data.cleaningTasks=data.cleaningTasks.filter(v=>v.id!==id);saveAndRefresh('Cleaning task deleted');}}
+  },true);
+
+  document.addEventListener('change',event=>{
+    const c=event.target.closest('[data-v17-change="step-toggle"]');if(!c)return;
+    event.preventDefault();
+    const p=data.projects.find(v=>v.id===c.dataset.parentId);const s=p?.steps?.find(v=>v.id===c.dataset.id);
+    if(s){s.completed=c.checked;p.completed=p.steps.length>0&&p.steps.every(v=>v.completed);saveAndRefresh();}
+  },true);
+
+  const oldSaveData=saveData;
+  saveData=function(){
+    oldSaveData();
+    setTimeout(()=>{ if(isListsVisible())v17RenderLists(); },0);
+  };
+
+  const oldShowAppView=showAppView;
+  showAppView=function(view,button){
+    oldShowAppView(view,button);
+    if(view==='tasks')setTimeout(v17RenderLists,0);
+  };
+
+  window.addEventListener('load',()=>setTimeout(v17RenderLists,0));
+})();
