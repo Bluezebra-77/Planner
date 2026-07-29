@@ -134,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "14";
+const APP_VERSION = "15";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -1240,7 +1240,7 @@ addForm.addEventListener("submit",event=>{
     const payload = { id: id || uid(), title: name, time: details };
     if (id) list[list.findIndex(x => x.id === id)] = payload;
     else list.push(payload);
-    saveData(); closeAddDialog(); renderAll(); return;
+    saveData(); closeAddDialog(); renderAll(); refreshListsImmediately(); return;
   }
 
   if(type==="cleaning") {
@@ -1262,7 +1262,7 @@ addForm.addEventListener("submit",event=>{
     } else {
       data.cleaningTasks.push(payload);
     }
-    saveData(); closeAddDialog(); renderAll(); return;
+    saveData(); closeAddDialog(); renderAll(); refreshListsImmediately(); return;
   }
 
   if(type==="annual") {
@@ -1273,7 +1273,7 @@ addForm.addEventListener("submit",event=>{
     const payload={id:id||uid(),name,details,monthDay,reminderDays:Number(document.getElementById("annualReminderDays").value||7),kind:"Birthday / annual date",steps:mergeEnteredSteps(oldAnnual?.steps||[],parseDatedSteps(document.getElementById("itemSteps")?.value||""),{})};
     if(id) data.annualDates[data.annualDates.findIndex(x=>x.id===id)]=payload;
     else data.annualDates.push(payload);
-    saveData(); closeAddDialog(); renderAll(); return;
+    saveData(); closeAddDialog(); renderAll(); refreshListsImmediately(); return;
   }
 
   let dueDate=null;
@@ -1327,7 +1327,7 @@ addForm.addEventListener("submit",event=>{
     data.categoryTasks[category].push(name);
   }
 
-  saveData(); closeAddDialog(); renderAll();
+  saveData(); closeAddDialog(); renderAll(); refreshListsImmediately();
 });
 
 function parseDatedSteps(text) {
@@ -1441,7 +1441,7 @@ function applyAppUpdate() {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=14", { updateViaCache: "none" });
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=15", { updateViaCache: "none" });
       if (registration.waiting) {
         waitingServiceWorker = registration.waiting;
         document.getElementById("updateButton")?.classList.remove("hidden");
@@ -1761,7 +1761,7 @@ const closeAppointmentDialogCore=closeAppointmentDialog;
 closeAppointmentDialog=function(){pendingInboxAppointmentId='';closeAppointmentDialogCore();};
 
 
-/* ===== V14 authoritative Lists rebuild =====
+/* ===== V15 authoritative Lists rebuild =====
    The Lists view reads directly from the same live data objects used by Home.
    These final declarations intentionally replace older renderers. */
 function renderTodos() {
@@ -1779,7 +1779,7 @@ function renderTodos() {
     const steps = Array.isArray(todo.steps) ? todo.steps : [];
     const stepsHtml = steps.length ? `<div class="steps-list">${steps.map(step => `
       <label class="step-row">
-        <input type="checkbox" ${step.completed ? 'checked' : ''} data-list-action="toggle-todo-step" data-parent-id="${todo.id}" data-id="${step.id}">
+        <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleTodoStep('${todo.id}','${step.id}'); refreshListsImmediately()">
         <span><strong>${escapeHtml(step.name || '')}</strong>${step.dueDate ? `<br><span class="card-meta">Due ${formatDate(step.dueDate)}</span>` : ''}</span>
       </label>`).join('')}</div>` : '';
     card.innerHTML = `
@@ -1790,9 +1790,9 @@ function renderTodos() {
       </div><span class="badge ${todo.completed ? 'done' : 'ongoing'}">${todo.completed ? 'Completed' : 'Active'}</span></div>
       ${stepsHtml}
       <div class="card-actions">
-        <button type="button" data-list-action="toggle-todo" data-id="${todo.id}">${todo.completed ? 'Mark active' : 'Complete'}</button>
-        <button type="button" data-list-action="edit-todo" data-id="${todo.id}">Edit</button>
-        <button type="button" class="danger-button" data-list-action="delete-todo" data-id="${todo.id}">Delete</button>
+        <button type="button" onclick="toggleTodo('${todo.id}'); refreshListsImmediately()">${todo.completed ? 'Mark active' : 'Complete'}</button>
+        <button type="button" onclick="editTodo('${todo.id}')">Edit</button>
+        <button type="button" class="danger-button" onclick="deleteTodo('${todo.id}'); refreshListsImmediately()">Delete</button>
       </div>`;
     area.appendChild(card);
   });
@@ -1816,13 +1816,13 @@ function renderProjects() {
     const stepsHtml = steps.length ? steps.map((step,index) => `
       <div class="list-card ${step.completed ? 'completed-card' : ''}">
         <label class="step-row">
-          <input type="checkbox" ${step.completed ? 'checked' : ''} data-list-action="toggle-step" data-parent-id="${project.id}" data-id="${step.id}">
+          <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleStep('${project.id}','${step.id}'); refreshListsImmediately()">
           <span><strong>${index + 1}. ${escapeHtml(step.name || 'Untitled step')}</strong>${step.dueDate ? `<br><span class="card-meta">Due ${formatDate(step.dueDate)}</span>` : ''}</span>
         </label>
         <div class="card-actions">
-          <button type="button" data-list-action="toggle-step" data-parent-id="${project.id}" data-id="${step.id}">${step.completed ? 'Mark active' : 'Complete step'}</button>
-          <button type="button" data-list-action="edit-step" data-parent-id="${project.id}" data-id="${step.id}">Edit step</button>
-          <button type="button" class="danger-button" data-list-action="delete-step" data-parent-id="${project.id}" data-id="${step.id}">Delete step</button>
+          <button type="button" onclick="toggleStep('${project.id}','${step.id}'); refreshListsImmediately()">${step.completed ? 'Mark active' : 'Complete step'}</button>
+          <button type="button" onclick="editStep('${project.id}','${step.id}')">Edit step</button>
+          <button type="button" class="danger-button" onclick="deleteStep('${project.id}','${step.id}'); refreshListsImmediately()">Delete step</button>
         </div>
       </div>`).join('') : '<div class="empty-state">No steps added yet.</div>';
     card.innerHTML = `
@@ -1832,9 +1832,9 @@ function renderProjects() {
       </div><span class="badge ${genuinelyComplete ? 'done' : 'ongoing'}">${genuinelyComplete ? 'Completed' : `${steps.filter(s=>s.completed).length} of ${steps.length} steps`}</span></div>
       <div class="steps-list">${stepsHtml}</div>
       <div class="card-actions">
-        <button type="button" data-list-action="edit-project" data-id="${project.id}">Edit project</button>
-        <button type="button" data-list-action="add-step" data-id="${project.id}">Add step</button>
-        <button type="button" class="danger-button" data-list-action="delete-project" data-id="${project.id}">Delete project</button>
+        <button type="button" onclick="editProject('${project.id}')">Edit project</button>
+        <button type="button" onclick="openAddDialog('step','${project.id}')">Add step</button>
+        <button type="button" class="danger-button" onclick="deleteProject('${project.id}'); refreshListsImmediately()">Delete project</button>
       </div>`;
     area.appendChild(card);
   });
@@ -1881,16 +1881,16 @@ function renderCleaning() {
         <div class="card-details">${escapeHtml(item.details || '')}</div>
       </div><span class="badge ${dueNow ? 'due' : 'ongoing'}">${dueNow ? 'Due now' : 'Scheduled'}</span></div>
       <div class="card-actions">
-        <button type="button" data-list-action="complete-cleaning" data-id="${item.id}">Complete</button>
-        <button type="button" data-list-action="edit-cleaning" data-id="${item.id}">Edit</button>
-        <button type="button" class="danger-button" data-list-action="delete-cleaning" data-id="${item.id}">Delete</button>
+        <button type="button" onclick="completeCleaning('${item.id}'); refreshListsImmediately()">Complete</button>
+        <button type="button" onclick="editCleaning('${item.id}')">Edit</button>
+        <button type="button" class="danger-button" onclick="deleteCleaning('${item.id}'); refreshListsImmediately()">Delete</button>
       </div>`;
     area.appendChild(card);
   });
 }
 
 
-/* ===== V14 reliable Lists actions and immediate refresh ===== */
+/* ===== V15 reliable Lists refresh ===== */
 function refreshListsImmediately() {
   renderTodos();
   renderAppointments();
@@ -1900,53 +1900,10 @@ function refreshListsImmediately() {
   renderProjects();
   renderCleaning();
   updateListHubCounts();
-  requestAnimationFrame(() => {
-    renderTodos();
-    renderProjects();
-    renderCleaning();
-    updateListHubCounts();
-  });
 }
 
-document.addEventListener('click', event => {
-  const control = event.target.closest('[data-list-action]');
-  if (!control) return;
-  const action = control.dataset.listAction;
-  const id = control.dataset.id;
-  const parentId = control.dataset.parentId;
-  event.preventDefault();
-  event.stopPropagation();
-
-  if (action === 'toggle-todo') toggleTodo(id);
-  else if (action === 'edit-todo') editTodo(id);
-  else if (action === 'delete-todo') deleteTodo(id);
-  else if (action === 'toggle-todo-step') toggleTodoStep(parentId, id);
-  else if (action === 'toggle-step') toggleStep(parentId, id);
-  else if (action === 'edit-step') editStep(parentId, id);
-  else if (action === 'delete-step') deleteStep(parentId, id);
-  else if (action === 'edit-project') editProject(id);
-  else if (action === 'add-step') openAddDialog('step', id);
-  else if (action === 'delete-project') deleteProject(id);
-  else if (action === 'complete-cleaning') completeCleaning(id);
-  else if (action === 'edit-cleaning') editCleaning(id);
-  else if (action === 'delete-cleaning') deleteCleaning(id);
-
-  if (!['edit-todo','edit-step','edit-project','add-step','edit-cleaning'].includes(action)) {
-    refreshListsImmediately();
-  }
-});
-
-document.addEventListener('change', event => {
-  const control = event.target.closest('input[data-list-action]');
-  if (!control) return;
-  const action = control.dataset.listAction;
-  if (action === 'toggle-step') toggleStep(control.dataset.parentId, control.dataset.id);
-  else if (action === 'toggle-todo-step') toggleTodoStep(control.dataset.parentId, control.dataset.id);
-  refreshListsImmediately();
-});
-
-const originalRenderAllV14 = renderAll;
+const originalRenderAllV15 = renderAll;
 renderAll = function() {
-  originalRenderAllV14();
+  originalRenderAllV15();
   refreshListsImmediately();
 };
