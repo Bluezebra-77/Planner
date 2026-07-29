@@ -134,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "11.1";
+const APP_VERSION = "11.2";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -950,6 +950,7 @@ function renderMainOverview() {
     <div class="overview-card"><strong>To-do items</strong><span class="overview-number">${data.todos.length}</span></div>
     <div class="overview-card"><strong>Projects</strong><span class="overview-number">${data.projects.length}</span></div>
     <div class="overview-card"><strong>Annual dates</strong><span class="overview-number">${data.annualDates.length}</span></div>
+    <div class="overview-card"><strong>Appointments</strong><span class="overview-number">${data.appointments.length}</span></div>
     <div class="overview-card"><strong>Cleaning tasks</strong><span class="overview-number">${data.cleaningTasks.length}</span></div>
     <div class="overview-card"><strong>Thoughts</strong><span class="overview-number">${data.inbox.length}</span></div>
     <div class="overview-card"><strong>Waiting For</strong><span class="overview-number">${data.waiting.length}</span></div>
@@ -1484,7 +1485,7 @@ function applyAppUpdate() {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.0", { updateViaCache: "none" });
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.2", { updateViaCache: "none" });
       if (registration.waiting) {
         waitingServiceWorker = registration.waiting;
         document.getElementById("updateButton")?.classList.remove("hidden");
@@ -1556,25 +1557,39 @@ function activeTodoDashboardItems() {
     return [{...todo,source:"To-do",itemType:"todo"}];
   });
 }
+function appointmentReminderItems(from,to){
+  const rows=[];
+  data.appointments.forEach(item=>appointmentDates(item,from,to).forEach(d=>rows.push({
+    id:item.id,
+    name:item.name,
+    details:item.details,
+    source:`Appointment${item.startTime?' · '+formatTime(item.startTime):''}${item.location?' · '+item.location:''}`,
+    dueDate:isoFromDate(d),
+    itemType:'appointment'
+  })));
+  return rows;
+}
 function getTodayReminderItems() {
   const today=new Date(); today.setHours(12,0,0,0);
   const dated=[...activeTodoDashboardItems(),...activeProjectDashboardItems()].filter(x=>!x.completed&&x.dueDate&&dateOnly(x.dueDate)<=today);
   const annual=data.annualDates.map(item=>({item,status:annualStatus(item)})).filter(e=>e.status&&(e.status.isToday||e.status.inReminderWindow)).map(e=>({id:e.item.id,name:e.item.name,details:e.item.details,source:e.status.isToday?"Annual date today":"Annual reminder",dueDate:e.status.occurrence.toISOString().slice(0,10),itemType:"annual"}));
   const cleaning=data.cleaningTasks.filter(i=>isDueTodayOrEarlier(i.nextDue)).map(i=>({id:i.id,name:i.name,details:i.details,source:`Cleaning: ${i.room||"General"}`,dueDate:i.nextDue,itemType:"cleaning"}));
-  return [...dated,...annual,...cleaning].sort((a,b)=>dateOnly(a.dueDate)-dateOnly(b.dueDate));
+  const appointments=appointmentReminderItems(today,today);
+  return [...dated,...annual,...cleaning,...appointments].sort((a,b)=>dateOnly(a.dueDate)-dateOnly(b.dueDate));
 }
 function getWeeklyItems() {
   const today=new Date(); today.setHours(12,0,0,0); const end=new Date(today); end.setDate(end.getDate()+7);
   const ordinary=[...activeTodoDashboardItems(),...activeProjectDashboardItems(),...data.cleaningTasks.map(i=>({id:i.id,name:i.name,details:i.details,source:`Cleaning: ${i.room||"General"}`,dueDate:i.nextDue,itemType:"cleaning",completed:false,leadDays:0}))]
     .filter(i=>!i.completed&&i.dueDate).filter(i=>{const d=dateOnly(i.dueDate),lead=Number(i.leadDays||0),start=new Date(d);start.setDate(start.getDate()-lead);return start<=end;});
   const annual=data.annualDates.map(i=>{const o=nextAnnualOccurrence(i.monthDay);return {...i,source:i.kind||"Annual reminder",dueDate:o?o.toISOString().slice(0,10):null,annual:true,itemType:"annual"};}).filter(i=>i.dueDate&&dateOnly(i.dueDate)<=end);
-  return [...ordinary,...annual].sort((a,b)=>dateOnly(a.dueDate)-dateOnly(b.dueDate));
+  const appointments=appointmentReminderItems(today,end);
+  return [...ordinary,...annual,...appointments].sort((a,b)=>dateOnly(a.dueDate)-dateOnly(b.dueDate));
 }
 function toggleTodoStep(todoId,stepId){const todo=data.todos.find(x=>x.id===todoId),step=todo?.steps?.find(x=>x.id===stepId);if(!todo||!step)return;step.completed=!step.completed;todo.completed=(todo.steps||[]).length>0&&todo.steps.every(s=>s.completed);saveData();renderAll();}
-function openReminderItem(item){if(item.itemType==="todo")editTodo(item.id);else if(item.itemType==="todoStep")editTodo(item.parentId);else if(item.itemType==="step")editStep(item.parentId,item.id);else if(item.itemType==="cleaning")editCleaning(item.id);else if(item.itemType==="annual"||item.annual)editAnnual(item.id);else if(item.itemType==="project")editProject(item.id);}
+function openReminderItem(item){if(item.itemType==="todo")editTodo(item.id);else if(item.itemType==="todoStep")editTodo(item.parentId);else if(item.itemType==="step")editStep(item.parentId,item.id);else if(item.itemType==="cleaning")editCleaning(item.id);else if(item.itemType==="annual"||item.annual)editAnnual(item.id);else if(item.itemType==="project")editProject(item.id);else if(item.itemType==="appointment")editAppointment(item.id);}
 function completionFor(item){if(item.itemType==="cleaning")return()=>completeCleaning(item.id);if(item.itemType==="todo")return()=>toggleTodo(item.id);if(item.itemType==="todoStep")return()=>toggleTodoStep(item.parentId,item.id);if(item.itemType==="step")return()=>toggleStep(item.parentId,item.id);return null;}
-function renderTodayReminders(){const area=document.getElementById("todayRemindersArea"),items=getTodayReminderItems();area.innerHTML="";if(!items.length){area.innerHTML='<div class="empty-state">No dated reminders need attention today.</div>';return;}items.forEach(item=>{const overdue=item.itemType!=="annual"&&dateOnly(item.dueDate)<new Date(new Date().setHours(0,0,0,0));area.appendChild(compactReminderRow(item,{meta:`${item.source} · ${formatDate(item.dueDate,item.itemType!=="annual")}${overdue?" · OVERDUE":""}`,actionable:item.itemType!=="annual",onComplete:completionFor(item),clickable:true}));});}
-function renderWeekly(){const area=document.getElementById("weeklyArea"),items=getWeeklyItems();area.innerHTML="";if(!items.length){area.innerHTML='<div class="empty-state">Nothing needs attention this week.</div>';return;}items.forEach(item=>area.appendChild(compactReminderRow(item,{meta:`${item.source} · ${formatDate(item.dueDate,item.itemType!=="annual")}`,actionable:item.itemType!=="annual",onComplete:completionFor(item),clickable:true})));}
+function renderTodayReminders(){const area=document.getElementById("todayRemindersArea"),items=getTodayReminderItems();area.innerHTML="";if(!items.length){area.innerHTML='<div class="empty-state">No dated reminders need attention today.</div>';return;}items.forEach(item=>{const overdue=item.itemType!=="annual"&&dateOnly(item.dueDate)<new Date(new Date().setHours(0,0,0,0));area.appendChild(compactReminderRow(item,{meta:`${item.source} · ${formatDate(item.dueDate,item.itemType!=="annual")}${overdue?" · OVERDUE":""}`,actionable:item.itemType!=="annual"&&item.itemType!=="appointment",onComplete:completionFor(item),clickable:true}));});}
+function renderWeekly(){const area=document.getElementById("weeklyArea"),items=getWeeklyItems();area.innerHTML="";if(!items.length){area.innerHTML='<div class="empty-state">Nothing needs attention this week.</div>';return;}items.forEach(item=>area.appendChild(compactReminderRow(item,{meta:`${item.source} · ${formatDate(item.dueDate,item.itemType!=="annual")}`,actionable:item.itemType!=="annual"&&item.itemType!=="appointment",onComplete:completionFor(item),clickable:true})));}
 let activeAnchoredMenu=null;
 function closeAnchoredMenu(){if(activeAnchoredMenu){activeAnchoredMenu.remove();activeAnchoredMenu=null;}}
 function showAnchoredMenu(button){

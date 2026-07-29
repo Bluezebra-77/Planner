@@ -1,7 +1,3 @@
-My Life Planner V11.1 – Appointments & Events Edition
+My Life Planner V11.2 — Appointments and Lists Fix
 
-My Life Planner v11.0 — Life Timeline Edition
-
-Upload all files in this folder to the root of a separate GitHub Pages repository or branch if you want to test it without replacing v10.3.
-
-Includes everything in v10.3 plus Life Timeline, Morning Briefing, Brain Inbox wording and Weekly Review.
+Appointments now appear in Today & Beyond, Today and This Week. My Lists includes a dedicated Appointments shortcut and all main management lists. The service worker has been updated to prevent stale mixed-version files.
