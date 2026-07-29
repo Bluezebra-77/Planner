@@ -1,4 +1,2 @@
-My Life Planner V11.8.1 — Version Synchronisation Build
-Built from the stable V10.3 foundation. Includes reliable editable lists, Brain Inbox conversion, appointments, Today/This Week integration and Today & Beyond timeline.
-
-Version synchronisation: header, About section, browser title, manifest, asset references, service-worker registration and cache all use V11.8.1.
+My Life Planner V11.7 Version-Synchronised Test Build
+Built from the supplied V11.6 core rebuild. All active HTML, JavaScript, manifest and service-worker version references are synchronised to V11.7 to prevent mixed cached releases. No planner features or saved-data structures were intentionally changed.

@@ -134,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "11.8.1";
+const APP_VERSION = "11.7";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -1090,15 +1090,7 @@ function sortByDueDate(a,b) {
 }
 
 function toggleTodo(id) { const item=data.todos.find(x=>x.id===id); if(item)item.completed=!item.completed; saveData(); renderAll(); }
-function deleteTodo(id) {
-  const item=data.todos.find(x=>x.id===id);
-  if(!item)return;
-  if(!confirm(`Delete \"${item.name}\" from the to-do list?`))return;
-  data.todos=data.todos.filter(x=>x.id!==id);
-  saveData();
-  renderAll();
-  showSaved('To-do deleted');
-}
+function deleteTodo(id) { data.todos=data.todos.filter(x=>x.id!==id); saveData(); renderAll(); }
 function toggleProject(id) { const item=data.projects.find(x=>x.id===id); if(item)item.completed=!item.completed; saveData(); renderAll(); }
 function deleteProject(id) { data.projects=data.projects.filter(x=>x.id!==id); saveData(); renderAll(); }
 function deleteAnnual(id) { data.annualDates=data.annualDates.filter(x=>x.id!==id); saveData(); renderAll(); }
@@ -1137,7 +1129,6 @@ function clearForm() {
 }
 
 function openAddDialog(type="todo",projectId="") {
-  if(type === "appointment") { openAppointmentDialog(); return; }
   clearForm();
   itemType.value=type;
   document.getElementById("editingParentId").value=projectId;
@@ -1186,7 +1177,6 @@ function updateFormVisibility() {
 }
 
 itemType.addEventListener("change",()=>{
-  if (itemType.value === "appointment") { closeAddDialog(); openAppointmentDialog(); return; }
   if (itemType.value === "step") populateProjectPicker(document.getElementById("editingParentId").value);
   updateFormVisibility();
 });
@@ -1451,7 +1441,7 @@ function applyAppUpdate() {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.8.1", { updateViaCache: "none" });
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.7", { updateViaCache: "none" });
       if (registration.waiting) {
         waitingServiceWorker = registration.waiting;
         document.getElementById("updateButton")?.classList.remove("hidden");
@@ -1561,43 +1551,76 @@ function showAnchoredMenu(button){
 document.addEventListener('click',e=>{if(activeAnchoredMenu&&!activeAnchoredMenu.contains(e.target)&&!e.target.closest('.item-menu-trigger'))closeAnchoredMenu();});
 window.addEventListener('scroll',closeAnchoredMenu,true); window.addEventListener('resize',closeAnchoredMenu);
 function compactMenu(actions,label){return `<span class="item-menu-anchor"><button type="button" class="item-menu-trigger" onclick="event.stopPropagation();showAnchoredMenu(this)" aria-label="Options for ${escapeHtml(label)}">⋯</button><span class="item-menu-template hidden">${actions}</span></span>`;}
-function renderTodos(){
-  const area=document.getElementById("todoArea");
-  if(!area)return;
-  area.innerHTML="";
-  const items=[...(data.todos||[])].sort(sortByDueDate);
-  if(!items.length){
-    area.innerHTML='<div class="empty-state">No to-do items yet. Select + to add one.</div>';
-    return;
-  }
-  const summary=document.createElement('div');
-  summary.className='list-total';
-  summary.textContent=`${items.length} to-do ${items.length===1?'item':'items'} in your full list`;
-  area.appendChild(summary);
-  items.forEach(todo=>{
-    const row=document.createElement('article');
-    row.className=`full-list-row ${todo.completed?'completed-row':''}`;
-    const timing=getTimingText(todo);
-    const details=todo.details?`<div class="full-list-details">${escapeHtml(todo.details)}</div>`:'';
-    row.innerHTML=`
-      <div class="full-list-content">
-        <button type="button" class="full-list-title" aria-label="Edit ${escapeHtml(todo.name)}">${escapeHtml(todo.name)}</button>
-        <div class="full-list-meta">${escapeHtml(timing||'No date set')}${todo.completed?' · Completed':''}</div>
-        ${details}
-      </div>
-      <div class="full-list-actions">
-        <button type="button" class="secondary-button todo-edit">Edit</button>
-        <button type="button" class="secondary-button todo-toggle">${todo.completed?'Mark active':'Complete'}</button>
-        <button type="button" class="danger-button todo-delete">Delete</button>
-      </div>`;
-    row.querySelector('.full-list-title').addEventListener('click',()=>editTodo(todo.id));
-    row.querySelector('.todo-edit').addEventListener('click',()=>editTodo(todo.id));
-    row.querySelector('.todo-toggle').addEventListener('click',()=>toggleTodo(todo.id));
-    row.querySelector('.todo-delete').addEventListener('click',()=>deleteTodo(todo.id));
-    area.appendChild(row);
-  });
-}
+function renderTodos(){const area=document.getElementById("todoArea");area.innerHTML="";if(!data.todos.length){area.innerHTML='<div class="empty-state">No to-do items yet.</div>';return;}[...data.todos].sort(sortByDueDate).forEach(todo=>{const row=document.createElement('div');row.className=`compact-manage-row ${todo.completed?'completed-row':''}`;const next=(todo.steps||[]).find(s=>!s.completed);row.innerHTML=`<button class="compact-row-main" onclick="editTodo('${todo.id}')"><span class="compact-row-title">${escapeHtml(todo.name)}</span><span class="compact-row-meta">${next?`Next: ${escapeHtml(next.name)}${next.dueDate?` · ${formatDate(next.dueDate)}`:''}`:getTimingText(todo)}</span></button>${compactMenu(`<button onclick="closeAnchoredMenu();editTodo('${todo.id}')">Edit</button><button onclick="closeAnchoredMenu();toggleTodo('${todo.id}')">${todo.completed?'Mark active':'Complete'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteTodo('${todo.id}')">Delete</button>`,todo.name)}`;area.appendChild(row);});}
+function renderAnnualDates(){const area=document.getElementById('annualArea');area.innerHTML='';if(!data.annualDates.length){area.innerHTML='<div class="empty-state">No birthdays or annual dates yet.</div>';return;}[...data.annualDates].sort((a,b)=>nextAnnualOccurrence(a.monthDay)-nextAnnualOccurrence(b.monthDay)).forEach(item=>{const next=nextAnnualOccurrence(item.monthDay),row=document.createElement('div');row.className='annual-manage-row';row.innerHTML=`<div><strong>${escapeHtml(item.name)}</strong><div class="card-meta">${next?next.toLocaleDateString('en-GB',{day:'numeric',month:'long'}):''}</div></div>${compactMenu(`<button onclick="closeAnchoredMenu();editAnnual('${item.id}')">Edit</button><button class="danger-text" onclick="closeAnchoredMenu();deleteAnnual('${item.id}')">Delete</button>`,item.name)}`;area.appendChild(row);});}
+function renderProjects(){const area=document.getElementById('projectsArea');area.innerHTML='';if(!data.projects.length){area.innerHTML='<div class="empty-state">No projects yet.</div>';return;}[...data.projects].sort(sortByDueDate).forEach(project=>{const card=document.createElement('div');card.className=`list-card ${project.completed?'completed-card':''}`;const steps=(project.steps||[]).map(step=>`<div class="step-compact-row"><label><input type="checkbox" ${step.completed?'checked':''} onchange="toggleStep('${project.id}','${step.id}')"> <strong>${escapeHtml(step.name)}</strong>${step.dueDate?` <span class="card-meta">${formatDate(step.dueDate)}</span>`:''}</label>${compactMenu(`<button onclick="closeAnchoredMenu();editStep('${project.id}','${step.id}')">Edit</button><button onclick="closeAnchoredMenu();toggleStep('${project.id}','${step.id}')">${step.completed?'Mark active':'Complete'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteStep('${project.id}','${step.id}')">Delete</button>`,step.name)}</div>`).join('')||'<div class="card-meta">No steps added yet.</div>';card.innerHTML=`<div class="card-top"><div><div class="card-title">${escapeHtml(project.name)}</div><div class="card-details">${escapeHtml(project.details||'')}</div></div>${compactMenu(`<button onclick="closeAnchoredMenu();editProject('${project.id}')">Edit project</button><button onclick="closeAnchoredMenu();openAddDialog('step','${project.id}')">Add step</button><button onclick="closeAnchoredMenu();toggleProject('${project.id}')">${project.completed?'Mark active':'Complete project'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteProject('${project.id}')">Delete</button>`,project.name)}</div><div class="steps-list">${steps}</div>`;area.appendChild(card);});}
 
+function addStepBuilderRow(builderId, step={}){
+ const box=document.getElementById(builderId); if(!box)return;
+ const row=document.createElement('div'); row.className='step-builder-row';
+ const mode=step.leadDays>0?'before':(step.dueDate?'date':'none');
+ row.innerHTML=`<input class="step-name-input" type="text" placeholder="Step description" value="${escapeHtml(step.name||'')}"><select class="step-date-mode"><option value="none">No date</option><option value="date" ${mode==='date'?'selected':''}>Choose date</option><option value="before" ${mode==='before'?'selected':''}>Days before event</option></select><input class="step-date-input ${mode==='date'?'':'hidden'}" type="date" value="${step.dueDate||''}"><div class="step-before-input ${mode==='before'?'':'hidden'}"><input type="number" min="0" max="3650" value="${step.leadDays||1}"><span>days before</span></div><button type="button" class="step-remove" aria-label="Remove step">×</button>`;
+ row.querySelector('.step-date-mode').addEventListener('change',e=>{row.querySelector('.step-date-input').classList.toggle('hidden',e.target.value!=='date');row.querySelector('.step-before-input').classList.toggle('hidden',e.target.value!=='before');});
+ row.querySelector('.step-remove').onclick=()=>row.remove(); box.appendChild(row);
+}
+function loadStepBuilder(builderId,steps=[]){const box=document.getElementById(builderId);if(!box)return;box.innerHTML='';(steps||[]).forEach(s=>addStepBuilderRow(builderId,s));}
+function baseDateForSteps(builderId){if(builderId==='projectStepsBuilder'||builderId==='itemStepsBuilder'){const t=document.getElementById('itemType').value;if(t==='annual'){const v=document.getElementById('annualDate').value;return v||null;}return document.getElementById('dueDate').value||null;}return null;}
+function serializeStepBuilder(builderId){const box=document.getElementById(builderId),base=baseDateForSteps(builderId);if(!box)return '';return [...box.querySelectorAll('.step-builder-row')].map(row=>{const name=row.querySelector('.step-name-input').value.trim();if(!name)return null;const mode=row.querySelector('.step-date-mode').value;let date='';let leadDays=0;if(mode==='date')date=row.querySelector('.step-date-input').value||'';if(mode==='before'){leadDays=Number(row.querySelector('.step-before-input input').value||0);if(base){const d=new Date(base+'T12:00:00');d.setDate(d.getDate()-leadDays);date=d.toISOString().slice(0,10);}}return `${date} | ${name} | lead:${leadDays}`;}).filter(Boolean).join('\n');}
+function syncStepBuilders(){const a=document.getElementById('projectSteps');const b=document.getElementById('itemSteps');if(a)a.value=serializeStepBuilder('projectStepsBuilder');if(b)b.value=serializeStepBuilder('itemStepsBuilder');}
+
+
+/* ===== Version 10 experience ===== */
+function dueClass(value){
+  if(!value) return 'status-future';
+  const d=dateOnly(value),today=new Date();today.setHours(12,0,0,0);
+  const days=daysBetween(today,d);
+  return days<0?'status-overdue':days<=2?'status-soon':'status-future';
+}
+function focusCandidateRows(){
+  const rows=[];
+  const today=new Date(); today.setHours(12,0,0,0);
+  data.todos.filter(x=>!x.completed).forEach(x=>rows.push({name:x.name,meta:getTimingText(x),dueDate:x.dueDate,kind:'To-do',action:()=>toggleTodo(x.id),open:()=>editTodo(x.id),score:x.dueDate?daysBetween(today,dateOnly(x.dueDate)):40}));
+  data.cleaningTasks.filter(x=>isDueTodayOrEarlier(x.nextDue)).forEach(x=>rows.push({name:x.name,meta:`Cleaning · ${x.room||'Home'}`,dueDate:x.nextDue,kind:'Cleaning',action:()=>completeCleaning(x.id),open:()=>editCleaning(x.id),score:-2}));
+  data.projects.filter(x=>!x.completed).forEach(p=>{const s=(p.steps||[]).find(x=>!x.completed);if(s)rows.push({name:s.name,meta:`Next action · ${p.name}`,dueDate:s.dueDate,kind:'Project',action:()=>toggleStep(p.id,s.id),open:()=>editStep(p.id,s.id),score:s.dueDate?daysBetween(today,dateOnly(s.dueDate)):12});});
+  data.waiting.filter(x=>!x.completed&&x.reviewDate&&dateOnly(x.reviewDate)<=today).forEach(x=>rows.push({name:x.name,meta:'Waiting for · review due',dueDate:x.reviewDate,kind:'Waiting',open:()=>editCapture('waiting',x.id),score:0}));
+  return rows.sort((a,b)=>a.score-b.score).slice(0,7);
+}
+function makeV10Row(item,{complete=true,menu='' }={}){
+ const row=document.createElement('div'); row.className=`v10-row ${dueClass(item.dueDate)}`;
+ const main=document.createElement('button');main.type='button';main.className='v10-row-main';main.innerHTML=`<span class="v10-row-title">${escapeHtml(item.name)}</span><span class="v10-row-meta">${escapeHtml(item.meta||'')}</span>`; if(item.open)main.onclick=item.open;
+ row.appendChild(main);
+ if(complete&&item.action){const done=document.createElement('button');done.type='button';done.className='complete-dot';done.setAttribute('aria-label','Complete');done.innerHTML='✓';done.onclick=item.action;row.prepend(done);}
+ if(menu)row.insertAdjacentHTML('beforeend',menu);
+ return row;
+}
+function renderFocusToday(){const area=document.getElementById('focusTodayArea');if(!area)return;area.innerHTML='';const items=focusCandidateRows();if(!items.length){area.innerHTML='<div class="empty-state calm-empty"><strong>You are clear for now.</strong><span>Capture a thought or add a task when something comes to mind.</span></div>';return;}items.forEach(x=>area.appendChild(makeV10Row(x)));}
+function refreshFocusToday(){renderFocusToday();const el=document.getElementById('focusTodayArea');el?.animate([{opacity:.35,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:260});}
+function renderProjectNextActions(){const area=document.getElementById('projectNextActionsArea');if(!area)return;area.innerHTML='';const active=data.projects.filter(p=>!p.completed).map(p=>({p,s:(p.steps||[]).find(x=>!x.completed)})).filter(x=>x.s);if(!active.length){area.innerHTML='<div class="empty-state">No project needs a next action.</div>';return;}active.forEach(({p,s})=>area.appendChild(makeV10Row({name:s.name,meta:`${p.name}${s.dueDate?' · '+formatDate(s.dueDate):''}`,dueDate:s.dueDate,action:()=>toggleStep(p.id,s.id),open:()=>editStep(p.id,s.id)})));}
+function openCaptureDialog(type='inbox',id=''){
+ const item=(data[type]||[]).find(x=>x.id===id);
+ document.getElementById('captureType').value=type;document.getElementById('captureId').value=id;
+ document.getElementById('captureTitle').textContent=type==='waiting'?(id?'Edit waiting item':'Add Waiting For'):(id?'Edit thought':'Capture a thought');
+ document.getElementById('captureName').value=item?.name||'';document.getElementById('captureNote').value=item?.note||'';document.getElementById('captureDate').value=item?.reviewDate||'';
+ document.getElementById('waitingDateLabel').classList.toggle('hidden',type!=='waiting');
+ document.getElementById('captureConvertActions')?.classList.toggle('hidden',type!=='inbox');
+ const saveBtn=document.querySelector('#captureForm .dialog-actions button:last-child');if(saveBtn)saveBtn.textContent=type==='waiting'?'Save item':'Save thought';
+ document.getElementById('captureDialog').showModal();setTimeout(()=>document.getElementById('captureName').focus(),80);
+}
+function closeCaptureDialog(){document.getElementById('captureDialog')?.close();}
+function editCapture(type,id){openCaptureDialog(type,id);}
+function deleteCapture(type,id){data[type]=data[type].filter(x=>x.id!==id);saveData();renderAll();showSaved('Deleted');}
+function completeWaiting(id){const x=data.waiting.find(x=>x.id===id);if(x)x.completed=!x.completed;saveData();renderAll();}
+function captureDraft(){return {type:document.getElementById('captureType').value,id:document.getElementById('captureId').value,name:document.getElementById('captureName').value.trim(),note:document.getElementById('captureNote').value.trim(),reviewDate:document.getElementById('captureDate').value};}
+function saveCapture(targetType=''){
+ const d=captureDraft(); if(!d.name){document.getElementById('captureName').focus();return false;}
+ const type=targetType||d.type;
+ if(type==='todo'){data.todos.unshift({id:uid(),name:d.name,details:d.note,timingType:'none',dueDate:'',completed:false,steps:[]});}
+ else if(type==='project'){data.projects.unshift({id:uid(),name:d.name,details:d.note,timingType:'none',dueDate:'',completed:false,steps:[]});}
+ else {const list=data[type]||(data[type]=[]),existing=list.find(x=>x.id===d.id);const record={id:existing?.id||uid(),name:d.name,note:d.note,reviewDate:type==='waiting'?d.reviewDate:'',completed:existing?.completed||false,createdAt:existing?.createdAt||new Date().toISOString()};if(existing)Object.assign(existing,record);else list.unshift(record);}
+ saveData();closeCaptureDialog();renderAll();showSaved(targetType?`Saved as ${targetType==='waiting'?'Waiting For':targetType}`:'Saved');return true;
+}
+function saveCaptureAs(type){saveCapture(type);}
+function convertInbox(id,type){const x=data.inbox.find(x=>x.id===id);if(!x)return;data.inbox=data.inbox.filter(i=>i.id!==id);if(type==='todo')data.todos.unshift({id:uid(),name:x.name,details:x.note||'',timingType:'none',dueDate:'',completed:false,steps:[]});else if(type==='project')data.projects.unshift({id:uid(),name:x.name,details:x.note||'',timingType:'none',dueDate:'',completed:false,steps:[]});else if(type==='appointment'){data.inbox.unshift(x);openAppointmentDialog('',x.name,x.note||'');return;}else data.waiting.unshift({id:uid(),name:x.name,note:x.note||'',reviewDate:'',completed:false});saveData();renderAll();showSaved('Thought converted');}
 function renderInbox(){const full=document.getElementById('inboxArea'),preview=document.getElementById('inboxPreviewArea');[full,preview].forEach(area=>{if(!area)return;area.innerHTML='';const items=area===preview?data.inbox.slice(0,3):data.inbox;if(!items.length){area.innerHTML='<div class="empty-state">Nothing waiting in your inbox.</div>';return;}items.forEach(x=>area.appendChild(makeV10Row({name:x.name,meta:x.note||'Unsorted thought',open:()=>editCapture('inbox',x.id)},{complete:false,menu:compactMenu(`<button onclick="closeAnchoredMenu();editCapture('inbox','${x.id}')">Edit</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','todo')">Make a to-do</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','project')">Make a project</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','appointment')">Make an appointment</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','waiting')">Move to Waiting For</button><button class="danger-text" onclick="closeAnchoredMenu();deleteCapture('inbox','${x.id}')">Delete</button>`,x.name)})));});}
 function renderWaiting(){const area=document.getElementById('waitingArea');if(!area)return;area.innerHTML='';if(!data.waiting.length){area.innerHTML='<div class="empty-state">Nothing being waited for.</div>';return;}data.waiting.forEach(x=>area.appendChild(makeV10Row({name:x.name,meta:x.reviewDate?`Review ${formatDate(x.reviewDate)}`:(x.note||'No review date'),dueDate:x.reviewDate,action:()=>completeWaiting(x.id),open:()=>editCapture('waiting',x.id)},{menu:compactMenu(`<button onclick="closeAnchoredMenu();editCapture('waiting','${x.id}')">Edit</button><button onclick="closeAnchoredMenu();completeWaiting('${x.id}')">${x.completed?'Mark active':'Complete'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteCapture('waiting','${x.id}')">Delete</button>`,x.name)})));}
 function startVoiceCapture(type=''){
@@ -1652,7 +1675,6 @@ function openAppointmentDialog(id='',prefillName='',prefillNotes=''){
   document.getElementById('appointmentTime').value=a?.time||'';
   document.getElementById('appointmentEndTime').value=a?.endTime||'';
   document.getElementById('appointmentLocation').value=a?.location||'';
-  document.getElementById('appointmentZoomLink').value=a?.zoomLink||a?.link||'';
   document.getElementById('appointmentNotes').value=a?.notes||prefillNotes||'';
   document.getElementById('appointmentRepeat').value=a?.repeat||'none';
   document.getElementById('appointmentDialogTitle').textContent=a?'Edit appointment':'Add appointment';
@@ -1666,14 +1688,14 @@ function saveAppointment(){
     if(!name){alert('Please enter an appointment title.');document.getElementById('appointmentName').focus();return false;}
     if(!date){alert('Please choose a date.');document.getElementById('appointmentDate').focus();return false;}
     const id=document.getElementById('appointmentId').value;const existing=(data.appointments||[]).find(x=>x.id===id);
-    const rec={id:existing?.id||uid(),name,date,time:document.getElementById('appointmentTime').value,endTime:document.getElementById('appointmentEndTime').value,location:document.getElementById('appointmentLocation').value.trim(),zoomLink:document.getElementById('appointmentZoomLink').value.trim(),notes:document.getElementById('appointmentNotes').value.trim(),repeat:document.getElementById('appointmentRepeat').value,createdAt:existing?.createdAt||new Date().toISOString()};
+    const rec={id:existing?.id||uid(),name,date,time:document.getElementById('appointmentTime').value,endTime:document.getElementById('appointmentEndTime').value,location:document.getElementById('appointmentLocation').value.trim(),notes:document.getElementById('appointmentNotes').value.trim(),repeat:document.getElementById('appointmentRepeat').value,createdAt:existing?.createdAt||new Date().toISOString()};
     if(existing)Object.assign(existing,rec);else data.appointments.unshift(rec);
     saveData();closeAppointmentDialog();renderAll();showSaved('Appointment saved');return true;
   }catch(e){console.error(e);alert('The appointment could not be saved. Please try again.');return false;}
 }
 function deleteAppointment(id){if(!confirm('Delete this appointment?'))return;data.appointments=data.appointments.filter(x=>x.id!==id);saveData();renderAll();}
-function renderAppointments(){const area=document.getElementById('appointmentsArea');if(!area)return;area.innerHTML='';const items=[...(data.appointments||[])].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));if(!items.length){area.innerHTML='<div class="empty-state">No appointments yet.</div>';return;}items.forEach(a=>{const row=document.createElement('div');row.className='compact-manage-row';row.innerHTML=`<button class="compact-row-main" onclick="openAppointmentDialog('${a.id}')"><span class="compact-row-title">${escapeHtml(a.name)}</span><span class="compact-row-meta">${formatDate(a.date)}${a.time?' · '+a.time:''}${a.location?' · '+escapeHtml(a.location):''}${a.zoomLink?' · Zoom link saved':''}${a.repeat&&a.repeat!=='none'?' · repeats '+a.repeat:''}</span></button>${compactMenu(`<button onclick="closeAnchoredMenu();openAppointmentDialog('${a.id}')">Edit</button><button class="danger-text" onclick="closeAnchoredMenu();deleteAppointment('${a.id}')">Delete</button>`,a.name)}`;area.appendChild(row);});}
-function renderTimeline(){const area=document.getElementById('timelineArea');if(!area)return;area.innerHTML='';const now=new Date();const items=(data.appointments||[]).flatMap(a=>appointmentOccurrences(a,now,120).map(o=>({...a,occurrenceDate:o.date}))).sort((a,b)=>(a.occurrenceDate+a.time).localeCompare(b.occurrenceDate+b.time));if(!items.length){area.innerHTML='<div class="empty-state">No upcoming appointments.</div>';return;}items.forEach(a=>area.appendChild(makeV10Row({name:a.name,meta:`${formatDate(a.occurrenceDate)}${a.time?' · '+a.time:''}${a.location?' · '+a.location:''}${a.zoomLink?' · Zoom':''}`,dueDate:a.occurrenceDate,open:()=>openAppointmentDialog(a.id)},{complete:false})));}
+function renderAppointments(){const area=document.getElementById('appointmentsArea');if(!area)return;area.innerHTML='';const items=[...(data.appointments||[])].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));if(!items.length){area.innerHTML='<div class="empty-state">No appointments yet.</div>';return;}items.forEach(a=>{const row=document.createElement('div');row.className='compact-manage-row';row.innerHTML=`<button class="compact-row-main" onclick="openAppointmentDialog('${a.id}')"><span class="compact-row-title">${escapeHtml(a.name)}</span><span class="compact-row-meta">${formatDate(a.date)}${a.time?' · '+a.time:''}${a.location?' · '+escapeHtml(a.location):''}${a.repeat&&a.repeat!=='none'?' · repeats '+a.repeat:''}</span></button>${compactMenu(`<button onclick="closeAnchoredMenu();openAppointmentDialog('${a.id}')">Edit</button><button class="danger-text" onclick="closeAnchoredMenu();deleteAppointment('${a.id}')">Delete</button>`,a.name)}`;area.appendChild(row);});}
+function renderTimeline(){const area=document.getElementById('timelineArea');if(!area)return;area.innerHTML='';const now=new Date();const items=(data.appointments||[]).flatMap(a=>appointmentOccurrences(a,now,120).map(o=>({...a,occurrenceDate:o.date}))).sort((a,b)=>(a.occurrenceDate+a.time).localeCompare(b.occurrenceDate+b.time));if(!items.length){area.innerHTML='<div class="empty-state">No upcoming appointments.</div>';return;}items.forEach(a=>area.appendChild(makeV10Row({name:a.name,meta:`${formatDate(a.occurrenceDate)}${a.time?' · '+a.time:''}${a.location?' · '+a.location:''}`,dueDate:a.occurrenceDate,open:()=>openAppointmentDialog(a.id)},{complete:false})));}
 
 /* Safe Brain Inbox conversion: an inbox item is only removed after the destination is saved. */
 let pendingInboxAppointmentId='';
