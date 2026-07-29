@@ -1,12 +1,11 @@
-My Life Planner V15 — Main Lists Display Fix
+My Life Planner V16 — Lists Subsystem Rebuild
 
-Built from the tested V11.8 package. This release uses whole-number versioning.
+Built from the user-supplied V15 source. This release uses whole-number versioning.
 
-Changes in V15:
-- The Lists view refreshes whenever it is opened.
-- All saved items are displayed under their correct category.
-- Completed to-dos and project steps remain visible in the main lists for verification.
-- Cleaning tasks remain listed with their updated next due date.
-- Old list search filtering is cleared when Lists is opened.
+Changes in V16:
+- Lists are rebuilt immediately after every save, complete or delete action.
+- Dynamically generated list controls use real JavaScript event listeners rather than inline handlers.
+- To-do, project-step and cleaning controls share the same live data used by Home.
+- Project completion is derived from all project steps.
+- The About screen and all active version references are synchronised to V16.
 - No saved-data structure was changed.
-- All active HTML, JavaScript, manifest and service-worker references are synchronised to V15.

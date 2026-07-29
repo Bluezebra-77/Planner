@@ -134,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "15";
+const APP_VERSION = "16";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -1441,7 +1441,7 @@ function applyAppUpdate() {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=15", { updateViaCache: "none" });
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=16", { updateViaCache: "none" });
       if (registration.waiting) {
         waitingServiceWorker = registration.waiting;
         document.getElementById("updateButton")?.classList.remove("hidden");
@@ -1761,136 +1761,22 @@ const closeAppointmentDialogCore=closeAppointmentDialog;
 closeAppointmentDialog=function(){pendingInboxAppointmentId='';closeAppointmentDialogCore();};
 
 
-/* ===== V15 authoritative Lists rebuild =====
-   The Lists view reads directly from the same live data objects used by Home.
-   These final declarations intentionally replace older renderers. */
-function renderTodos() {
-  const area = document.getElementById('todoArea');
-  if (!area) return;
-  area.innerHTML = '';
-  const items = Array.isArray(data.todos) ? data.todos : [];
-  if (!items.length) {
-    area.innerHTML = '<div class="empty-state">No to-do items yet.</div>';
-    return;
-  }
-  [...items].sort(sortByDueDate).forEach(todo => {
-    const card = document.createElement('div');
-    card.className = `list-card ${todo.completed ? 'completed-card' : ''}`;
-    const steps = Array.isArray(todo.steps) ? todo.steps : [];
-    const stepsHtml = steps.length ? `<div class="steps-list">${steps.map(step => `
-      <label class="step-row">
-        <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleTodoStep('${todo.id}','${step.id}'); refreshListsImmediately()">
-        <span><strong>${escapeHtml(step.name || '')}</strong>${step.dueDate ? `<br><span class="card-meta">Due ${formatDate(step.dueDate)}</span>` : ''}</span>
-      </label>`).join('')}</div>` : '';
-    card.innerHTML = `
-      <div class="card-top"><div>
-        <div class="card-title">${escapeHtml(todo.name || 'Untitled to-do')}</div>
-        <div class="card-meta">${escapeHtml(getTimingText(todo) || 'No date')}</div>
-        <div class="card-details">${escapeHtml(todo.details || '')}</div>
-      </div><span class="badge ${todo.completed ? 'done' : 'ongoing'}">${todo.completed ? 'Completed' : 'Active'}</span></div>
-      ${stepsHtml}
-      <div class="card-actions">
-        <button type="button" onclick="toggleTodo('${todo.id}'); refreshListsImmediately()">${todo.completed ? 'Mark active' : 'Complete'}</button>
-        <button type="button" onclick="editTodo('${todo.id}')">Edit</button>
-        <button type="button" class="danger-button" onclick="deleteTodo('${todo.id}'); refreshListsImmediately()">Delete</button>
-      </div>`;
-    area.appendChild(card);
+/* ===== V16 authoritative Lists subsystem =====
+   Lists are rebuilt from live data and every control receives a real
+   addEventListener handler. No dynamically-created inline onclick code is used. */
+function actionButton(label, handler, className = '') {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  if (className) button.className = className;
+  button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    handler();
   });
+  return button;
 }
 
-function renderProjects() {
-  const area = document.getElementById('projectsArea');
-  if (!area) return;
-  area.innerHTML = '';
-  const projects = Array.isArray(data.projects) ? data.projects : [];
-  if (!projects.length) {
-    area.innerHTML = '<div class="empty-state">No projects yet.</div>';
-    return;
-  }
-  [...projects].sort(sortByDueDate).forEach(project => {
-    const steps = Array.isArray(project.steps) ? project.steps : [];
-    const genuinelyComplete = steps.length > 0 && steps.every(step => step.completed);
-    project.completed = genuinelyComplete;
-    const card = document.createElement('div');
-    card.className = `list-card ${genuinelyComplete ? 'completed-card' : ''}`;
-    const stepsHtml = steps.length ? steps.map((step,index) => `
-      <div class="list-card ${step.completed ? 'completed-card' : ''}">
-        <label class="step-row">
-          <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleStep('${project.id}','${step.id}'); refreshListsImmediately()">
-          <span><strong>${index + 1}. ${escapeHtml(step.name || 'Untitled step')}</strong>${step.dueDate ? `<br><span class="card-meta">Due ${formatDate(step.dueDate)}</span>` : ''}</span>
-        </label>
-        <div class="card-actions">
-          <button type="button" onclick="toggleStep('${project.id}','${step.id}'); refreshListsImmediately()">${step.completed ? 'Mark active' : 'Complete step'}</button>
-          <button type="button" onclick="editStep('${project.id}','${step.id}')">Edit step</button>
-          <button type="button" class="danger-button" onclick="deleteStep('${project.id}','${step.id}'); refreshListsImmediately()">Delete step</button>
-        </div>
-      </div>`).join('') : '<div class="empty-state">No steps added yet.</div>';
-    card.innerHTML = `
-      <div class="card-top"><div>
-        <div class="card-title">${escapeHtml(project.name || 'Untitled project')}</div>
-        <div class="card-details">${escapeHtml(project.details || '')}</div>
-      </div><span class="badge ${genuinelyComplete ? 'done' : 'ongoing'}">${genuinelyComplete ? 'Completed' : `${steps.filter(s=>s.completed).length} of ${steps.length} steps`}</span></div>
-      <div class="steps-list">${stepsHtml}</div>
-      <div class="card-actions">
-        <button type="button" onclick="editProject('${project.id}')">Edit project</button>
-        <button type="button" onclick="openAddDialog('step','${project.id}')">Add step</button>
-        <button type="button" class="danger-button" onclick="deleteProject('${project.id}'); refreshListsImmediately()">Delete project</button>
-      </div>`;
-    area.appendChild(card);
-  });
-}
-
-function toggleStep(projectId, stepId) {
-  const project = (data.projects || []).find(item => item.id === projectId);
-  const step = project && (project.steps || []).find(item => item.id === stepId);
-  if (!project || !step) return;
-  step.completed = !step.completed;
-  project.completed = (project.steps || []).length > 0 && project.steps.every(item => item.completed);
-  saveData();
-  renderAll();
-}
-
-function completeCleaning(id) {
-  const task = (data.cleaningTasks || []).find(item => item.id === id);
-  if (!task) return;
-  const completedOn = localDateKey ? localDateKey() : new Date().toISOString().slice(0,10);
-  task.lastCompleted = completedOn;
-  task.nextDue = nextCleaningDate(task.nextDue || completedOn, task.frequency || 'weekly');
-  saveData();
-  renderAll();
-}
-
-function renderCleaning() {
-  const area = document.getElementById('cleaningArea');
-  if (!area) return;
-  area.innerHTML = '';
-  const items = Array.isArray(data.cleaningTasks) ? data.cleaningTasks : [];
-  if (!items.length) {
-    area.innerHTML = '<div class="empty-state">No cleaning tasks yet.</div>';
-    return;
-  }
-  [...items].sort((a,b) => String(a.nextDue || '').localeCompare(String(b.nextDue || ''))).forEach(item => {
-    const dueNow = isDueTodayOrEarlier(item.nextDue);
-    const card = document.createElement('div');
-    card.className = `list-card cleaning-card ${dueNow ? 'due-today' : ''}`;
-    card.innerHTML = `
-      <div class="card-top"><div>
-        <div class="card-title">${escapeHtml(item.name || 'Untitled cleaning task')}</div>
-        <div class="card-meta">${escapeHtml(item.room || 'General')} · ${escapeHtml(frequencyLabel(item.frequency || 'weekly'))}</div>
-        <div class="cleaning-frequency">Next due ${item.nextDue ? formatDate(item.nextDue) : 'not set'}</div>
-        <div class="card-details">${escapeHtml(item.details || '')}</div>
-      </div><span class="badge ${dueNow ? 'due' : 'ongoing'}">${dueNow ? 'Due now' : 'Scheduled'}</span></div>
-      <div class="card-actions">
-        <button type="button" onclick="completeCleaning('${item.id}'); refreshListsImmediately()">Complete</button>
-        <button type="button" onclick="editCleaning('${item.id}')">Edit</button>
-        <button type="button" class="danger-button" onclick="deleteCleaning('${item.id}'); refreshListsImmediately()">Delete</button>
-      </div>`;
-    area.appendChild(card);
-  });
-}
-
-
-/* ===== V15 reliable Lists refresh ===== */
 function refreshListsImmediately() {
   renderTodos();
   renderAppointments();
@@ -1902,8 +1788,188 @@ function refreshListsImmediately() {
   updateListHubCounts();
 }
 
-const originalRenderAllV15 = renderAll;
+function refreshPlannerUI(message = '') {
+  renderAll();
+  refreshListsImmediately();
+  if (message) showSaved(message);
+  queueMicrotask(refreshListsImmediately);
+  requestAnimationFrame(refreshListsImmediately);
+}
+
+function renderTodos() {
+  const area = document.getElementById('todoArea');
+  if (!area) return;
+  area.replaceChildren();
+  const items = Array.isArray(data.todos) ? [...data.todos].sort(sortByDueDate) : [];
+  if (!items.length) {
+    area.innerHTML = '<div class="empty-state">No to-do items yet.</div>';
+    return;
+  }
+  items.forEach(todo => {
+    const card = document.createElement('div');
+    card.className = `list-card ${todo.completed ? 'completed-card' : ''}`;
+    const top = document.createElement('div');
+    top.className = 'card-top';
+    const copy = document.createElement('div');
+    copy.innerHTML = `<div class="card-title">${escapeHtml(todo.name || 'Untitled to-do')}</div><div class="card-meta">${escapeHtml(getTimingText(todo) || 'No date')}</div><div class="card-details">${escapeHtml(todo.details || '')}</div>`;
+    const badge = document.createElement('span');
+    badge.className = `badge ${todo.completed ? 'done' : 'ongoing'}`;
+    badge.textContent = todo.completed ? 'Completed' : 'Active';
+    top.append(copy, badge);
+    card.appendChild(top);
+
+    const steps = Array.isArray(todo.steps) ? todo.steps : [];
+    if (steps.length) {
+      const stepsBox = document.createElement('div');
+      stepsBox.className = 'steps-list';
+      steps.forEach(step => {
+        const label = document.createElement('label');
+        label.className = 'step-row';
+        const check = document.createElement('input');
+        check.type = 'checkbox';
+        check.checked = !!step.completed;
+        check.addEventListener('change', () => { toggleTodoStep(todo.id, step.id); refreshPlannerUI(); });
+        const text = document.createElement('span');
+        text.innerHTML = `<strong>${escapeHtml(step.name || '')}</strong>${step.dueDate ? `<br><span class="card-meta">Due ${formatDate(step.dueDate)}</span>` : ''}`;
+        label.append(check, text);
+        stepsBox.appendChild(label);
+      });
+      card.appendChild(stepsBox);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+    actions.append(
+      actionButton(todo.completed ? 'Mark active' : 'Complete', () => { toggleTodo(todo.id); refreshPlannerUI(); }),
+      actionButton('Edit', () => editTodo(todo.id)),
+      actionButton('Delete', () => { if (confirm(`Delete “${todo.name}”?`)) { deleteTodo(todo.id); refreshPlannerUI('To-do deleted'); } }, 'danger-button')
+    );
+    card.appendChild(actions);
+    area.appendChild(card);
+  });
+}
+
+function renderProjects() {
+  const area = document.getElementById('projectsArea');
+  if (!area) return;
+  area.replaceChildren();
+  const projects = Array.isArray(data.projects) ? [...data.projects].sort(sortByDueDate) : [];
+  if (!projects.length) {
+    area.innerHTML = '<div class="empty-state">No projects yet.</div>';
+    return;
+  }
+  projects.forEach(project => {
+    const steps = Array.isArray(project.steps) ? project.steps : [];
+    const complete = steps.length > 0 && steps.every(step => step.completed);
+    if (project.completed !== complete) project.completed = complete;
+
+    const card = document.createElement('div');
+    card.className = `list-card ${complete ? 'completed-card' : ''}`;
+    const top = document.createElement('div');
+    top.className = 'card-top';
+    const copy = document.createElement('div');
+    copy.innerHTML = `<div class="card-title">${escapeHtml(project.name || 'Untitled project')}</div><div class="card-details">${escapeHtml(project.details || '')}</div>`;
+    const badge = document.createElement('span');
+    badge.className = `badge ${complete ? 'done' : 'ongoing'}`;
+    badge.textContent = complete ? 'Completed' : `${steps.filter(step => step.completed).length} of ${steps.length} steps`;
+    top.append(copy, badge);
+    card.appendChild(top);
+
+    const stepsBox = document.createElement('div');
+    stepsBox.className = 'steps-list';
+    if (!steps.length) stepsBox.innerHTML = '<div class="empty-state">No steps added yet.</div>';
+    steps.forEach((step, index) => {
+      const stepCard = document.createElement('div');
+      stepCard.className = `list-card ${step.completed ? 'completed-card' : ''}`;
+      const label = document.createElement('label');
+      label.className = 'step-row';
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.checked = !!step.completed;
+      check.addEventListener('change', () => { toggleStep(project.id, step.id); refreshPlannerUI(); });
+      const text = document.createElement('span');
+      text.innerHTML = `<strong>${index + 1}. ${escapeHtml(step.name || 'Untitled step')}</strong>${step.dueDate ? `<br><span class="card-meta">Due ${formatDate(step.dueDate)}</span>` : ''}`;
+      label.append(check, text);
+      const stepActions = document.createElement('div');
+      stepActions.className = 'card-actions';
+      stepActions.append(
+        actionButton(step.completed ? 'Mark active' : 'Complete step', () => { toggleStep(project.id, step.id); refreshPlannerUI(); }),
+        actionButton('Edit step', () => editStep(project.id, step.id)),
+        actionButton('Delete step', () => { if (confirm(`Delete step “${step.name}”?`)) { deleteStep(project.id, step.id); refreshPlannerUI('Project step deleted'); } }, 'danger-button')
+      );
+      stepCard.append(label, stepActions);
+      stepsBox.appendChild(stepCard);
+    });
+    card.appendChild(stepsBox);
+
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+    actions.append(
+      actionButton('Edit project', () => editProject(project.id)),
+      actionButton('Add step', () => openAddDialog('step', project.id)),
+      actionButton('Delete project', () => { if (confirm(`Delete project “${project.name}”?`)) { deleteProject(project.id); refreshPlannerUI('Project deleted'); } }, 'danger-button')
+    );
+    card.appendChild(actions);
+    area.appendChild(card);
+  });
+}
+
+function toggleStep(projectId, stepId) {
+  const project = (data.projects || []).find(item => item.id === projectId);
+  const step = project?.steps?.find(item => item.id === stepId);
+  if (!project || !step) return;
+  step.completed = !step.completed;
+  project.completed = project.steps.length > 0 && project.steps.every(item => item.completed);
+  saveData();
+  renderAll();
+}
+
+function completeCleaning(id) {
+  const task = (data.cleaningTasks || []).find(item => item.id === id);
+  if (!task) return;
+  const completedOn = localDateKey();
+  task.lastCompleted = completedOn;
+  task.nextDue = nextCleaningDate(task.nextDue || completedOn, task.frequency || 'weekly');
+  saveData();
+  renderAll();
+}
+
+function renderCleaning() {
+  const area = document.getElementById('cleaningArea');
+  if (!area) return;
+  area.replaceChildren();
+  const items = Array.isArray(data.cleaningTasks) ? [...data.cleaningTasks].sort((a,b) => String(a.nextDue || '').localeCompare(String(b.nextDue || ''))) : [];
+  if (!items.length) {
+    area.innerHTML = '<div class="empty-state">No cleaning tasks yet.</div>';
+    return;
+  }
+  items.forEach(item => {
+    const dueNow = isDueTodayOrEarlier(item.nextDue);
+    const card = document.createElement('div');
+    card.className = `list-card cleaning-card ${dueNow ? 'due-today' : ''}`;
+    const top = document.createElement('div');
+    top.className = 'card-top';
+    const copy = document.createElement('div');
+    copy.innerHTML = `<div class="card-title">${escapeHtml(item.name || 'Untitled cleaning task')}</div><div class="card-meta">${escapeHtml(item.room || 'General')} · ${escapeHtml(frequencyLabel(item.frequency || 'weekly'))}</div><div class="cleaning-frequency">Next due ${item.nextDue ? formatDate(item.nextDue) : 'not set'}</div><div class="card-details">${escapeHtml(item.details || '')}</div>`;
+    const badge = document.createElement('span');
+    badge.className = `badge ${dueNow ? 'due' : 'ongoing'}`;
+    badge.textContent = dueNow ? 'Due now' : 'Scheduled';
+    top.append(copy, badge);
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+    actions.append(
+      actionButton('Complete', () => { completeCleaning(item.id); refreshPlannerUI('Cleaning task completed'); }),
+      actionButton('Edit', () => editCleaning(item.id)),
+      actionButton('Delete', () => { if (confirm(`Delete “${item.name}”?`)) { deleteCleaning(item.id); refreshPlannerUI('Cleaning task deleted'); } }, 'danger-button')
+    );
+    card.append(top, actions);
+    area.appendChild(card);
+  });
+}
+
+const originalRenderAllV16 = renderAll;
 renderAll = function() {
-  originalRenderAllV15();
+  originalRenderAllV16();
   refreshListsImmediately();
 };
+
