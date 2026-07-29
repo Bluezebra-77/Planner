@@ -134,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "13";
+const APP_VERSION = "14";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -777,9 +777,9 @@ function renderCleaning() {
           <span class="badge ${dueNow ? "due" : "ongoing"}">${dueNow ? "Due now" : "Scheduled"}</span>
         </div>
         <div class="card-actions">
-          <button type="button" onclick="completeCleaning('${item.id}')">Complete</button>
-          <button type="button" onclick="editCleaning('${item.id}')">Edit</button>
-          <button type="button" class="danger-button" onclick="deleteCleaning('${item.id}')">Delete</button>
+          <button type="button" data-list-action="complete-cleaning" data-id="${item.id}">Complete</button>
+          <button type="button" data-list-action="edit-cleaning" data-id="${item.id}">Edit</button>
+          <button type="button" class="danger-button" data-list-action="delete-cleaning" data-id="${item.id}">Delete</button>
         </div>`;
       area.appendChild(card);
     });
@@ -988,7 +988,7 @@ function renderTodos() {
     row.className = `compact-manage-row ${todo.completed ? "completed-row" : ""}`;
     const timing = getTimingText(todo);
     row.innerHTML = `
-      <button type="button" class="compact-row-main" onclick="editTodo('${todo.id}')">
+      <button type="button" class="compact-row-main" data-list-action="edit-todo" data-id="${todo.id}">
         <span class="compact-row-title">${escapeHtml(todo.name)}</span>
         <span class="compact-row-meta">${escapeHtml(timing)}</span>
       </button>
@@ -996,8 +996,8 @@ function renderTodos() {
         <summary aria-label="Options for ${escapeHtml(todo.name)}">⋯</summary>
         <div class="item-menu-popover">
           <button type="button" onclick="editTodo('${todo.id}'); this.closest('details').removeAttribute('open')">Edit</button>
-          <button type="button" onclick="toggleTodo('${todo.id}')">${todo.completed ? "Mark active" : "Complete"}</button>
-          <button type="button" class="danger-text" onclick="deleteTodo('${todo.id}')">Delete</button>
+          <button type="button" data-list-action="toggle-todo" data-id="${todo.id}">${todo.completed ? "Mark active" : "Complete"}</button>
+          <button type="button" class="danger-text" data-list-action="delete-todo" data-id="${todo.id}">Delete</button>
         </div>
       </details>`;
     area.appendChild(row);
@@ -1049,15 +1049,15 @@ function renderProjects() {
       ? project.steps.map(step => `
         <div class="list-card">
           <label class="step-row">
-            <input type="checkbox" ${step.completed ? "checked" : ""} onchange="toggleStep('${project.id}','${step.id}')">
+            <input type="checkbox" ${step.completed ? "checked" : ""} data-list-action="toggle-step" data-parent-id="${project.id}" data-id="${step.id}">
             <span>
               <strong>${escapeHtml(step.name)}</strong><br>
               <span class="card-meta">${escapeHtml(step.details || "")}${step.dueDate ? ` - Due ${formatDate(step.dueDate)}` : ""}</span>
             </span>
           </label>
           <div class="card-actions">
-            <button type="button" onclick="editStep('${project.id}','${step.id}')">Edit step</button>
-            <button type="button" class="danger-button" onclick="deleteStep('${project.id}','${step.id}')">Delete step</button>
+            <button type="button" data-list-action="edit-step" data-parent-id="${project.id}" data-id="${step.id}">Edit step</button>
+            <button type="button" class="danger-button" data-list-action="delete-step" data-parent-id="${project.id}" data-id="${step.id}">Delete step</button>
           </div>
         </div>`).join("")
       : `<div class="card-meta">No steps added yet.</div>`;
@@ -1072,10 +1072,10 @@ function renderProjects() {
       </div>
       <div class="steps-list">${stepsHtml}</div>
       <div class="card-actions">
-        <button type="button" onclick="editProject('${project.id}')">Edit project</button>
-        <button type="button" onclick="openAddDialog('step','${project.id}')">Add step</button>
+        <button type="button" data-list-action="edit-project" data-id="${project.id}">Edit project</button>
+        <button type="button" data-list-action="add-step" data-id="${project.id}">Add step</button>
         <button type="button" onclick="toggleProject('${project.id}')">${project.completed ? "Mark active" : "Complete project"}</button>
-        <button type="button" class="danger-button" onclick="deleteProject('${project.id}')">Delete</button>
+        <button type="button" class="danger-button" data-list-action="delete-project" data-id="${project.id}">Delete</button>
       </div>`;
     area.appendChild(card);
   });
@@ -1441,7 +1441,7 @@ function applyAppUpdate() {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=13", { updateViaCache: "none" });
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=14", { updateViaCache: "none" });
       if (registration.waiting) {
         waitingServiceWorker = registration.waiting;
         document.getElementById("updateButton")?.classList.remove("hidden");
@@ -1584,9 +1584,9 @@ function showAnchoredMenu(button){
 document.addEventListener('click',e=>{if(activeAnchoredMenu&&!activeAnchoredMenu.contains(e.target)&&!e.target.closest('.item-menu-trigger'))closeAnchoredMenu();});
 window.addEventListener('scroll',closeAnchoredMenu,true); window.addEventListener('resize',closeAnchoredMenu);
 function compactMenu(actions,label){return `<span class="item-menu-anchor"><button type="button" class="item-menu-trigger" onclick="event.stopPropagation();showAnchoredMenu(this)" aria-label="Options for ${escapeHtml(label)}">⋯</button><span class="item-menu-template hidden">${actions}</span></span>`;}
-function renderTodos(){const area=document.getElementById("todoArea");area.innerHTML="";if(!data.todos.length){area.innerHTML='<div class="empty-state">No to-do items yet.</div>';return;}[...data.todos].sort(sortByDueDate).forEach(todo=>{const row=document.createElement('div');row.className=`compact-manage-row ${todo.completed?'completed-row':''}`;const next=(todo.steps||[]).find(s=>!s.completed);row.innerHTML=`<button class="compact-row-main" onclick="editTodo('${todo.id}')"><span class="compact-row-title">${escapeHtml(todo.name)}</span><span class="compact-row-meta">${next?`Next: ${escapeHtml(next.name)}${next.dueDate?` · ${formatDate(next.dueDate)}`:''}`:getTimingText(todo)}</span></button>${compactMenu(`<button onclick="closeAnchoredMenu();editTodo('${todo.id}')">Edit</button><button onclick="closeAnchoredMenu();toggleTodo('${todo.id}')">${todo.completed?'Mark active':'Complete'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteTodo('${todo.id}')">Delete</button>`,todo.name)}`;area.appendChild(row);});}
+function renderTodos(){const area=document.getElementById("todoArea");area.innerHTML="";if(!data.todos.length){area.innerHTML='<div class="empty-state">No to-do items yet.</div>';return;}[...data.todos].sort(sortByDueDate).forEach(todo=>{const row=document.createElement('div');row.className=`compact-manage-row ${todo.completed?'completed-row':''}`;const next=(todo.steps||[]).find(s=>!s.completed);row.innerHTML=`<button class="compact-row-main" data-list-action="edit-todo" data-id="${todo.id}"><span class="compact-row-title">${escapeHtml(todo.name)}</span><span class="compact-row-meta">${next?`Next: ${escapeHtml(next.name)}${next.dueDate?` · ${formatDate(next.dueDate)}`:''}`:getTimingText(todo)}</span></button>${compactMenu(`<button onclick="closeAnchoredMenu();editTodo('${todo.id}')">Edit</button><button onclick="closeAnchoredMenu();toggleTodo('${todo.id}')">${todo.completed?'Mark active':'Complete'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteTodo('${todo.id}')">Delete</button>`,todo.name)}`;area.appendChild(row);});}
 function renderAnnualDates(){const area=document.getElementById('annualArea');area.innerHTML='';if(!data.annualDates.length){area.innerHTML='<div class="empty-state">No birthdays or annual dates yet.</div>';return;}[...data.annualDates].sort((a,b)=>nextAnnualOccurrence(a.monthDay)-nextAnnualOccurrence(b.monthDay)).forEach(item=>{const next=nextAnnualOccurrence(item.monthDay),row=document.createElement('div');row.className='annual-manage-row';row.innerHTML=`<div><strong>${escapeHtml(item.name)}</strong><div class="card-meta">${next?next.toLocaleDateString('en-GB',{day:'numeric',month:'long'}):''}</div></div>${compactMenu(`<button onclick="closeAnchoredMenu();editAnnual('${item.id}')">Edit</button><button class="danger-text" onclick="closeAnchoredMenu();deleteAnnual('${item.id}')">Delete</button>`,item.name)}`;area.appendChild(row);});}
-function renderProjects(){const area=document.getElementById('projectsArea');area.innerHTML='';if(!data.projects.length){area.innerHTML='<div class="empty-state">No projects yet.</div>';return;}[...data.projects].sort(sortByDueDate).forEach(project=>{const card=document.createElement('div');card.className=`list-card ${project.completed?'completed-card':''}`;const steps=(project.steps||[]).map(step=>`<div class="step-compact-row"><label><input type="checkbox" ${step.completed?'checked':''} onchange="toggleStep('${project.id}','${step.id}')"> <strong>${escapeHtml(step.name)}</strong>${step.dueDate?` <span class="card-meta">${formatDate(step.dueDate)}</span>`:''}</label>${compactMenu(`<button onclick="closeAnchoredMenu();editStep('${project.id}','${step.id}')">Edit</button><button onclick="closeAnchoredMenu();toggleStep('${project.id}','${step.id}')">${step.completed?'Mark active':'Complete'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteStep('${project.id}','${step.id}')">Delete</button>`,step.name)}</div>`).join('')||'<div class="card-meta">No steps added yet.</div>';card.innerHTML=`<div class="card-top"><div><div class="card-title">${escapeHtml(project.name)}</div><div class="card-details">${escapeHtml(project.details||'')}</div></div>${compactMenu(`<button onclick="closeAnchoredMenu();editProject('${project.id}')">Edit project</button><button onclick="closeAnchoredMenu();openAddDialog('step','${project.id}')">Add step</button><button onclick="closeAnchoredMenu();toggleProject('${project.id}')">${project.completed?'Mark active':'Complete project'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteProject('${project.id}')">Delete</button>`,project.name)}</div><div class="steps-list">${steps}</div>`;area.appendChild(card);});}
+function renderProjects(){const area=document.getElementById('projectsArea');area.innerHTML='';if(!data.projects.length){area.innerHTML='<div class="empty-state">No projects yet.</div>';return;}[...data.projects].sort(sortByDueDate).forEach(project=>{const card=document.createElement('div');card.className=`list-card ${project.completed?'completed-card':''}`;const steps=(project.steps||[]).map(step=>`<div class="step-compact-row"><label><input type="checkbox" ${step.completed?'checked':''} data-list-action="toggle-step" data-parent-id="${project.id}" data-id="${step.id}"> <strong>${escapeHtml(step.name)}</strong>${step.dueDate?` <span class="card-meta">${formatDate(step.dueDate)}</span>`:''}</label>${compactMenu(`<button onclick="closeAnchoredMenu();editStep('${project.id}','${step.id}')">Edit</button><button onclick="closeAnchoredMenu();toggleStep('${project.id}','${step.id}')">${step.completed?'Mark active':'Complete'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteStep('${project.id}','${step.id}')">Delete</button>`,step.name)}</div>`).join('')||'<div class="card-meta">No steps added yet.</div>';card.innerHTML=`<div class="card-top"><div><div class="card-title">${escapeHtml(project.name)}</div><div class="card-details">${escapeHtml(project.details||'')}</div></div>${compactMenu(`<button onclick="closeAnchoredMenu();editProject('${project.id}')">Edit project</button><button onclick="closeAnchoredMenu();openAddDialog('step','${project.id}')">Add step</button><button onclick="closeAnchoredMenu();toggleProject('${project.id}')">${project.completed?'Mark active':'Complete project'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteProject('${project.id}')">Delete</button>`,project.name)}</div><div class="steps-list">${steps}</div>`;area.appendChild(card);});}
 
 function addStepBuilderRow(builderId, step={}){
  const box=document.getElementById(builderId); if(!box)return;
@@ -1761,7 +1761,7 @@ const closeAppointmentDialogCore=closeAppointmentDialog;
 closeAppointmentDialog=function(){pendingInboxAppointmentId='';closeAppointmentDialogCore();};
 
 
-/* ===== V13 authoritative Lists rebuild =====
+/* ===== V14 authoritative Lists rebuild =====
    The Lists view reads directly from the same live data objects used by Home.
    These final declarations intentionally replace older renderers. */
 function renderTodos() {
@@ -1779,7 +1779,7 @@ function renderTodos() {
     const steps = Array.isArray(todo.steps) ? todo.steps : [];
     const stepsHtml = steps.length ? `<div class="steps-list">${steps.map(step => `
       <label class="step-row">
-        <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleTodoStep('${todo.id}','${step.id}')">
+        <input type="checkbox" ${step.completed ? 'checked' : ''} data-list-action="toggle-todo-step" data-parent-id="${todo.id}" data-id="${step.id}">
         <span><strong>${escapeHtml(step.name || '')}</strong>${step.dueDate ? `<br><span class="card-meta">Due ${formatDate(step.dueDate)}</span>` : ''}</span>
       </label>`).join('')}</div>` : '';
     card.innerHTML = `
@@ -1790,9 +1790,9 @@ function renderTodos() {
       </div><span class="badge ${todo.completed ? 'done' : 'ongoing'}">${todo.completed ? 'Completed' : 'Active'}</span></div>
       ${stepsHtml}
       <div class="card-actions">
-        <button type="button" onclick="toggleTodo('${todo.id}')">${todo.completed ? 'Mark active' : 'Complete'}</button>
-        <button type="button" onclick="editTodo('${todo.id}')">Edit</button>
-        <button type="button" class="danger-button" onclick="deleteTodo('${todo.id}')">Delete</button>
+        <button type="button" data-list-action="toggle-todo" data-id="${todo.id}">${todo.completed ? 'Mark active' : 'Complete'}</button>
+        <button type="button" data-list-action="edit-todo" data-id="${todo.id}">Edit</button>
+        <button type="button" class="danger-button" data-list-action="delete-todo" data-id="${todo.id}">Delete</button>
       </div>`;
     area.appendChild(card);
   });
@@ -1816,13 +1816,13 @@ function renderProjects() {
     const stepsHtml = steps.length ? steps.map((step,index) => `
       <div class="list-card ${step.completed ? 'completed-card' : ''}">
         <label class="step-row">
-          <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleStep('${project.id}','${step.id}')">
+          <input type="checkbox" ${step.completed ? 'checked' : ''} data-list-action="toggle-step" data-parent-id="${project.id}" data-id="${step.id}">
           <span><strong>${index + 1}. ${escapeHtml(step.name || 'Untitled step')}</strong>${step.dueDate ? `<br><span class="card-meta">Due ${formatDate(step.dueDate)}</span>` : ''}</span>
         </label>
         <div class="card-actions">
-          <button type="button" onclick="toggleStep('${project.id}','${step.id}')">${step.completed ? 'Mark active' : 'Complete step'}</button>
-          <button type="button" onclick="editStep('${project.id}','${step.id}')">Edit step</button>
-          <button type="button" class="danger-button" onclick="deleteStep('${project.id}','${step.id}')">Delete step</button>
+          <button type="button" data-list-action="toggle-step" data-parent-id="${project.id}" data-id="${step.id}">${step.completed ? 'Mark active' : 'Complete step'}</button>
+          <button type="button" data-list-action="edit-step" data-parent-id="${project.id}" data-id="${step.id}">Edit step</button>
+          <button type="button" class="danger-button" data-list-action="delete-step" data-parent-id="${project.id}" data-id="${step.id}">Delete step</button>
         </div>
       </div>`).join('') : '<div class="empty-state">No steps added yet.</div>';
     card.innerHTML = `
@@ -1832,9 +1832,9 @@ function renderProjects() {
       </div><span class="badge ${genuinelyComplete ? 'done' : 'ongoing'}">${genuinelyComplete ? 'Completed' : `${steps.filter(s=>s.completed).length} of ${steps.length} steps`}</span></div>
       <div class="steps-list">${stepsHtml}</div>
       <div class="card-actions">
-        <button type="button" onclick="editProject('${project.id}')">Edit project</button>
-        <button type="button" onclick="openAddDialog('step','${project.id}')">Add step</button>
-        <button type="button" class="danger-button" onclick="deleteProject('${project.id}')">Delete project</button>
+        <button type="button" data-list-action="edit-project" data-id="${project.id}">Edit project</button>
+        <button type="button" data-list-action="add-step" data-id="${project.id}">Add step</button>
+        <button type="button" class="danger-button" data-list-action="delete-project" data-id="${project.id}">Delete project</button>
       </div>`;
     area.appendChild(card);
   });
@@ -1881,10 +1881,72 @@ function renderCleaning() {
         <div class="card-details">${escapeHtml(item.details || '')}</div>
       </div><span class="badge ${dueNow ? 'due' : 'ongoing'}">${dueNow ? 'Due now' : 'Scheduled'}</span></div>
       <div class="card-actions">
-        <button type="button" onclick="completeCleaning('${item.id}')">Complete</button>
-        <button type="button" onclick="editCleaning('${item.id}')">Edit</button>
-        <button type="button" class="danger-button" onclick="deleteCleaning('${item.id}')">Delete</button>
+        <button type="button" data-list-action="complete-cleaning" data-id="${item.id}">Complete</button>
+        <button type="button" data-list-action="edit-cleaning" data-id="${item.id}">Edit</button>
+        <button type="button" class="danger-button" data-list-action="delete-cleaning" data-id="${item.id}">Delete</button>
       </div>`;
     area.appendChild(card);
   });
 }
+
+
+/* ===== V14 reliable Lists actions and immediate refresh ===== */
+function refreshListsImmediately() {
+  renderTodos();
+  renderAppointments();
+  renderInbox();
+  renderWaiting();
+  renderAnnualDates();
+  renderProjects();
+  renderCleaning();
+  updateListHubCounts();
+  requestAnimationFrame(() => {
+    renderTodos();
+    renderProjects();
+    renderCleaning();
+    updateListHubCounts();
+  });
+}
+
+document.addEventListener('click', event => {
+  const control = event.target.closest('[data-list-action]');
+  if (!control) return;
+  const action = control.dataset.listAction;
+  const id = control.dataset.id;
+  const parentId = control.dataset.parentId;
+  event.preventDefault();
+  event.stopPropagation();
+
+  if (action === 'toggle-todo') toggleTodo(id);
+  else if (action === 'edit-todo') editTodo(id);
+  else if (action === 'delete-todo') deleteTodo(id);
+  else if (action === 'toggle-todo-step') toggleTodoStep(parentId, id);
+  else if (action === 'toggle-step') toggleStep(parentId, id);
+  else if (action === 'edit-step') editStep(parentId, id);
+  else if (action === 'delete-step') deleteStep(parentId, id);
+  else if (action === 'edit-project') editProject(id);
+  else if (action === 'add-step') openAddDialog('step', id);
+  else if (action === 'delete-project') deleteProject(id);
+  else if (action === 'complete-cleaning') completeCleaning(id);
+  else if (action === 'edit-cleaning') editCleaning(id);
+  else if (action === 'delete-cleaning') deleteCleaning(id);
+
+  if (!['edit-todo','edit-step','edit-project','add-step','edit-cleaning'].includes(action)) {
+    refreshListsImmediately();
+  }
+});
+
+document.addEventListener('change', event => {
+  const control = event.target.closest('input[data-list-action]');
+  if (!control) return;
+  const action = control.dataset.listAction;
+  if (action === 'toggle-step') toggleStep(control.dataset.parentId, control.dataset.id);
+  else if (action === 'toggle-todo-step') toggleTodoStep(control.dataset.parentId, control.dataset.id);
+  refreshListsImmediately();
+});
+
+const originalRenderAllV14 = renderAll;
+renderAll = function() {
+  originalRenderAllV14();
+  refreshListsImmediately();
+};
