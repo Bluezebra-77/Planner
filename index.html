@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Life Planner</title>
-  <link rel="stylesheet" href="style.css?v=11.4">
-  <link rel="manifest" href="manifest.json?v=11.4">
+  <link rel="stylesheet" href="style.css?v=11.5">
+  <link rel="manifest" href="manifest.json?v=11.5">
   <meta name="theme-color" content="#1769c2">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -18,7 +18,7 @@
     <header class="app-header">
       <div>
         <p class="eyebrow">My flexible daily planner</p>
-        <h1 class="brand-title"><img src="icon-192.png" class="header-zebra" alt=""><span id="plannerTitle">My Life Planner</span> <span class="brand-77">77</span> <span class="version-badge">V11.4</span></h1>
+        <h1 class="brand-title"><img src="icon-192.png" class="header-zebra" alt=""><span id="plannerTitle">My Life Planner</span> <span class="brand-77">77</span> <span class="version-badge">V11.5</span></h1>
         <p id="todayDate" class="date-line"></p>
       </div>
       <div class="header-actions">
@@ -220,7 +220,7 @@
         <details class="storage-details"><summary>Where can I find my backups?</summary><p><strong>Automatic daily backups:</strong> stored privately inside this browser on this device.</p><p><strong>Visible backup files:</strong> choose Save backup file or Share backup, then save to iCloud Drive, OneDrive or Files.</p></details>
         <div class="card-actions"><button type="button" onclick="exportPlanner()">Save backup file</button><button type="button" onclick="sharePlannerBackup()">Share backup</button><button type="button" class="secondary-button" onclick="document.getElementById('importFile').click()">Import backup</button><input id="importFile" class="hidden" type="file" accept=".json,application/json" onchange="importPlanner(event)"></div>
         <p id="storageStatus" class="storage-status"></p><p id="saveIndicator" class="save-indicator" aria-live="polite">Ready</p>
-        <details class="storage-details"><summary>About My Life Planner</summary><p><strong>Version:</strong> 11.4</p><p><strong>Updated:</strong> 29 July 2026</p><p><strong>Designed by Blue Zebra 77</strong></p><p>Updates change the app layout but do not intentionally replace your personal information. Your data stays in this browser unless you export it.</p></details>
+        <details class="storage-details"><summary>About My Life Planner</summary><p><strong>Version:</strong> 11.5</p><p><strong>Updated:</strong> 29 July 2026</p><p><strong>Designed by Blue Zebra 77</strong></p><p>Updates change the app layout but do not intentionally replace your personal information. Your data stays in this browser unless you export it.</p></details>
       </div>
     </dialog>
 
@@ -356,7 +356,7 @@
         <div class="two-column-fields"><label>Date<input id="appointmentDate" type="date"></label><label>Start time<input id="appointmentStart" type="time"></label></div>
         <div class="two-column-fields"><label>End time (optional)<input id="appointmentEnd" type="time"></label><label>Reminder<select id="appointmentReminder"><option value="0">At the time</option><option value="15">15 minutes before</option><option value="30">30 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select></label></div>
         <label>Location or meeting platform<input id="appointmentLocation" type="text" placeholder="For example: Zoom, Camera Club or GP surgery"></label>
-        <label>Link (optional)<input id="appointmentLink" type="url" placeholder="https://..."></label>
+        <label>Link (optional)<input id="appointmentLink" type="text" inputmode="url" placeholder="https://..."></label>
         <label>Repeat<select id="appointmentRepeat"><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="fortnightly">Fortnightly</option><option value="monthlyDate">Monthly on this date</option><option value="monthlyOrdinal">Monthly by weekday</option><option value="yearly">Yearly</option><option value="selectedDates">Selected extra dates</option></select></label>
         <div id="appointmentMonthlyPattern" class="hidden two-column-fields"><label>Which occurrence?<select id="appointmentOrdinal"><option value="1">First</option><option value="2">Second</option><option value="3">Third</option><option value="4">Fourth</option><option value="5">Fifth</option></select></label><label>Weekday<select id="appointmentWeekday"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></label></div>
         <label>Stop repeating after (optional)<input id="appointmentEndDate" type="date"></label>
@@ -370,7 +370,7 @@
 
       <div class="dialog-actions">
         <button type="button" class="secondary-button" onclick="closeAddDialog()">Cancel</button>
-        <button type="submit">Save item</button>
+        <button type="button" id="saveItemButton" onclick="saveCurrentItem()">Save item</button>
       </div>
     </form>
   </dialog>
@@ -388,6 +388,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=11.4"></script>
+  <script src="app.js?v=11.5"></script>
 </body>
 </html>

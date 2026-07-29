@@ -134,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "11.4";
+const APP_VERSION = "11.5";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -1256,8 +1256,7 @@ function editAppointment(id) {
   updateFormVisibility(); dialog.showModal();
 }
 
-addForm.addEventListener("submit",event=>{
-  event.preventDefault();
+function saveCurrentItem(){
   const type=itemType.value;
   const id=document.getElementById("editingId").value;
   const parentId=document.getElementById("editingParentId").value || document.getElementById("projectPicker").value;
@@ -1266,7 +1265,7 @@ addForm.addEventListener("submit",event=>{
   const timing=timingType.value;
   const leadDays=Number(document.getElementById("leadDays").value || 7);
   syncStepBuilders();
-  if(!name)return;
+  if(!name){ alert("Please enter a name or title."); document.getElementById("itemName").focus(); return; }
 
   if(type==="daily" || type==="evening") {
     const list = type === "evening" ? data.eveningTasks : data.dailyTasks;
@@ -1277,7 +1276,7 @@ addForm.addEventListener("submit",event=>{
   }
 
   if(type==="appointment") {
-    const date=document.getElementById("appointmentDate").value; if(!date)return;
+    const date=document.getElementById("appointmentDate").value; if(!date){ alert("Please choose the appointment date."); document.getElementById("appointmentDate").focus(); return; }
     const repeat=document.getElementById("appointmentRepeat").value;
     const customDates=document.getElementById("appointmentCustomDates").value.split(/\n|,/).map(x=>x.trim()).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x));
     const payload={id:id||uid(),name,details,date,startTime:document.getElementById("appointmentStart").value||"",endTime:document.getElementById("appointmentEnd").value||"",location:document.getElementById("appointmentLocation").value.trim(),link:document.getElementById("appointmentLink").value.trim(),reminderMinutes:Number(document.getElementById("appointmentReminder").value||0),repeat,ordinal:Number(document.getElementById("appointmentOrdinal").value||1),weekday:Number(document.getElementById("appointmentWeekday").value||1),repeatEndDate:document.getElementById("appointmentEndDate").value||null,customDates};
@@ -1371,7 +1370,9 @@ addForm.addEventListener("submit",event=>{
   }
 
   saveData(); closeAddDialog(); renderAll();
-});
+}
+
+addForm.addEventListener("submit", event => { event.preventDefault(); saveCurrentItem(); });
 
 function parseDatedSteps(text) {
   return String(text||"").split(/\n/).map(x=>x.trim()).filter(Boolean).map(line=>{
@@ -1486,7 +1487,7 @@ function applyAppUpdate() {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.4", { updateViaCache: "none" });
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.5", { updateViaCache: "none" });
       if (registration.waiting) {
         waitingServiceWorker = registration.waiting;
         document.getElementById("updateButton")?.classList.remove("hidden");
