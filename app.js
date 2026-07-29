@@ -134,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "11.8";
+const APP_VERSION = "12";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -1441,7 +1441,7 @@ function applyAppUpdate() {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.8", { updateViaCache: "none" });
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=12", { updateViaCache: "none" });
       if (registration.waiting) {
         waitingServiceWorker = registration.waiting;
         document.getElementById("updateButton")?.classList.remove("hidden");
@@ -1467,15 +1467,38 @@ createRecoveryCopy(JSON.stringify(data));
 renderAll();
 
 
+function prepareListsView() {
+  const search = document.getElementById('globalListSearch');
+  if (search && search.value) search.value = '';
+  document.querySelectorAll('.managed-list-section').forEach(section => {
+    section.hidden = false;
+    section.classList.remove('search-no-match');
+    section.querySelectorAll('.compact-manage-row,.annual-manage-row,.list-card,.v10-row').forEach(row => {
+      row.hidden = false;
+    });
+  });
+}
+
 function showAppView(view, button) {
   const titles = {
     home: ["Home", "Your day"],
-    tasks: ["Lists", "All your saved entries, ready to manage"],
+    tasks: ["Lists", "All tasks saved under each category"],
     planner: ["Planner", "Projects, dates and routines"]
   };
   document.querySelectorAll('.app-view-section').forEach(section => {
     section.hidden = section.dataset.view !== view;
   });
+  if (view === 'tasks') {
+    renderTodos();
+    renderAppointments();
+    renderInbox();
+    renderWaiting();
+    renderAnnualDates();
+    renderProjects();
+    renderCleaning();
+    updateListHubCounts();
+    prepareListsView();
+  }
   document.querySelectorAll('.bottom-nav .nav-button[data-tab]').forEach(btn => btn.classList.remove('active'));
   const activeButton = button || document.querySelector(`.bottom-nav .nav-button[data-tab="${view}"]`);
   if (activeButton) activeButton.classList.add('active');
@@ -1648,8 +1671,15 @@ document.getElementById('captureForm')?.addEventListener('submit',e=>{e.preventD
 
 /* ===== Version 10.3 My Lists control centre ===== */
 function updateListHubCounts(){
- const counts={todoHubCount:data.todos.length,projectHubCount:data.projects.length,cleaningHubCount:data.cleaningTasks.length,annualHubCount:data.annualDates.length,appointmentHubCount:data.appointments.length,inboxHubCount:data.inbox.length,waitingHubCount:data.waiting.length};
- Object.entries(counts).forEach(([id,n])=>{const el=document.getElementById(id);if(el)el.textContent=`${n} ${n===1?'item':'items'}`;});
+ const simple={annualHubCount:data.annualDates.length,appointmentHubCount:(data.appointments||[]).length,inboxHubCount:(data.inbox||[]).length};
+ Object.entries(simple).forEach(([id,n])=>{const el=document.getElementById(id);if(el)el.textContent=`${n} ${n===1?'item':'items'}`;});
+ const statusCounts={
+   todoHubCount:[data.todos.filter(x=>!x.completed).length,data.todos.filter(x=>x.completed).length],
+   projectHubCount:[data.projects.filter(x=>!x.completed).length,data.projects.filter(x=>x.completed).length],
+   cleaningHubCount:[data.cleaningTasks.length,0],
+   waitingHubCount:[(data.waiting||[]).filter(x=>!x.completed).length,(data.waiting||[]).filter(x=>x.completed).length]
+ };
+ Object.entries(statusCounts).forEach(([id,[active,done]])=>{const el=document.getElementById(id);if(el)el.textContent=done?`${active} active · ${done} completed`:`${active} ${active===1?'item':'items'}`;});
 }
 function jumpToList(id){
  const el=document.getElementById(id); if(!el)return; el.scrollIntoView({behavior:'smooth',block:'start'}); el.classList.add('list-highlight'); setTimeout(()=>el.classList.remove('list-highlight'),900);
