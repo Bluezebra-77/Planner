@@ -134,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "11.7";
+const APP_VERSION = "11.8";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -1441,7 +1441,7 @@ function applyAppUpdate() {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.7", { updateViaCache: "none" });
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.8", { updateViaCache: "none" });
       if (registration.waiting) {
         waitingServiceWorker = registration.waiting;
         document.getElementById("updateButton")?.classList.remove("hidden");
@@ -1520,10 +1520,20 @@ function getTodayReminderItems() {
   return [...dated,...annual,...cleaning].sort((a,b)=>dateOnly(a.dueDate)-dateOnly(b.dueDate));
 }
 function getWeeklyItems() {
-  const today=new Date(); today.setHours(12,0,0,0); const end=new Date(today); end.setDate(end.getDate()+7);
+  const today=new Date(); today.setHours(12,0,0,0);
+  const end=new Date(today); end.setDate(end.getDate()+7);
   const ordinary=[...activeTodoDashboardItems(),...activeProjectDashboardItems(),...appointmentDashboardItems(),...data.cleaningTasks.map(i=>({id:i.id,name:i.name,details:i.details,source:`Cleaning: ${i.room||"General"}`,dueDate:i.nextDue,itemType:"cleaning",completed:false,leadDays:0}))]
-    .filter(i=>!i.completed&&i.dueDate).filter(i=>{const d=dateOnly(i.dueDate),lead=Number(i.leadDays||0),start=new Date(d);start.setDate(start.getDate()-lead);return start<=end;});
-  const annual=data.annualDates.map(i=>{const o=nextAnnualOccurrence(i.monthDay);return {...i,source:i.kind||"Annual reminder",dueDate:o?o.toISOString().slice(0,10):null,annual:true,itemType:"annual"};}).filter(i=>i.dueDate&&dateOnly(i.dueDate)<=end);
+    .filter(i=>!i.completed&&i.dueDate)
+    .filter(i=>{
+      const due=dateOnly(i.dueDate);
+      const lead=Number(i.leadDays||0);
+      const reminderStart=new Date(due); reminderStart.setDate(reminderStart.getDate()-lead);
+      // Today and overdue items belong only in the Today panel.
+      return due>today && reminderStart<=end;
+    });
+  const annual=data.annualDates
+    .map(i=>{const o=nextAnnualOccurrence(i.monthDay);return {...i,source:i.kind||"Annual reminder",dueDate:o?o.toISOString().slice(0,10):null,annual:true,itemType:"annual"};})
+    .filter(i=>i.dueDate&&dateOnly(i.dueDate)>today&&dateOnly(i.dueDate)<=end);
   return [...ordinary,...annual].sort((a,b)=>dateOnly(a.dueDate)-dateOnly(b.dueDate));
 }
 function toggleTodoStep(todoId,stepId){const todo=data.todos.find(x=>x.id===todoId),step=todo?.steps?.find(x=>x.id===stepId);if(!todo||!step)return;step.completed=!step.completed;todo.completed=(todo.steps||[]).length>0&&todo.steps.every(s=>s.completed);saveData();renderAll();}
