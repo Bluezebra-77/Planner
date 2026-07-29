@@ -44,14 +44,14 @@ function normaliseLegacyShape(value = {}) {
     todos: source.todos || source.todoItems || source.tasks || [],
     projects: source.projects || source.projectItems || [],
     annualDates: source.annualDates || source.birthdays || source.annualReminders || [],
-    appointments: source.appointments || source.events || source.calendarEvents || [],
-    cleaningTasks: source.cleaningTasks || source.cleaning || source.cleaningJobs || source.householdTasks || []
+    cleaningTasks: source.cleaningTasks || source.cleaning || source.cleaningJobs || source.householdTasks || [],
+    appointments: source.appointments || source.events || []
   };
 }
 
 function scoreData(candidate = {}) {
   const shaped = normaliseLegacyShape(candidate);
-  return [shaped.todos, shaped.projects, shaped.annualDates, shaped.appointments, shaped.cleaningTasks]
+  return [shaped.todos, shaped.projects, shaped.annualDates, shaped.cleaningTasks, shaped.appointments]
     .reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
 }
 
@@ -113,8 +113,8 @@ function getData() {
     todos: mergeUniqueLists(candidates,"todos"),
     projects: mergeUniqueLists(candidates,"projects"),
     annualDates: mergeUniqueLists(candidates,"annualDates"),
-    appointments: mergeUniqueLists(candidates,"appointments"),
     cleaningTasks: mergeUniqueLists(candidates,"cleaningTasks"),
+    appointments: mergeUniqueLists(candidates,"appointments"),
     inbox: mergeUniqueLists(candidates,"inbox"),
     waiting: mergeUniqueLists(candidates,"waiting")
   });
@@ -134,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "11.5";
+const APP_VERSION = "11.6";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -142,8 +142,8 @@ function normaliseData(loaded = {}) {
     todos: Array.isArray(loaded.todos) ? loaded.todos : [],
     projects: Array.isArray(loaded.projects) ? loaded.projects : [],
     annualDates: Array.isArray(loaded.annualDates) ? loaded.annualDates : [],
-    appointments: Array.isArray(loaded.appointments) ? loaded.appointments : [],
     cleaningTasks: Array.isArray(loaded.cleaningTasks) ? loaded.cleaningTasks : Array.isArray(loaded.cleaning) ? loaded.cleaning : Array.isArray(loaded.cleaningJobs) ? loaded.cleaningJobs : [],
+    appointments: Array.isArray(loaded.appointments) ? loaded.appointments : [],
     inbox: Array.isArray(loaded.inbox) ? loaded.inbox : [],
     waiting: Array.isArray(loaded.waiting) ? loaded.waiting : [],
     dailyTasks: Array.isArray(loaded.dailyTasks) ? loaded.dailyTasks : JSON.parse(JSON.stringify(dailyTasks)),
@@ -950,7 +950,6 @@ function renderMainOverview() {
     <div class="overview-card"><strong>To-do items</strong><span class="overview-number">${data.todos.length}</span></div>
     <div class="overview-card"><strong>Projects</strong><span class="overview-number">${data.projects.length}</span></div>
     <div class="overview-card"><strong>Annual dates</strong><span class="overview-number">${data.annualDates.length}</span></div>
-    <div class="overview-card"><strong>Appointments</strong><span class="overview-number">${data.appointments.length}</span></div>
     <div class="overview-card"><strong>Cleaning tasks</strong><span class="overview-number">${data.cleaningTasks.length}</span></div>
     <div class="overview-card"><strong>Thoughts</strong><span class="overview-number">${data.inbox.length}</span></div>
     <div class="overview-card"><strong>Waiting For</strong><span class="overview-number">${data.waiting.length}</span></div>
@@ -1095,7 +1094,6 @@ function deleteTodo(id) { data.todos=data.todos.filter(x=>x.id!==id); saveData()
 function toggleProject(id) { const item=data.projects.find(x=>x.id===id); if(item)item.completed=!item.completed; saveData(); renderAll(); }
 function deleteProject(id) { data.projects=data.projects.filter(x=>x.id!==id); saveData(); renderAll(); }
 function deleteAnnual(id) { data.annualDates=data.annualDates.filter(x=>x.id!==id); saveData(); renderAll(); }
-function deleteAppointment(id) { if(!confirm("Delete this appointment or event?")) return; data.appointments=data.appointments.filter(x=>x.id!==id); saveData(); renderAll(); }
 
 function toggleStep(projectId,stepId) {
   const project=data.projects.find(x=>x.id===projectId);
@@ -1125,10 +1123,6 @@ function clearForm() {
   document.getElementById("monthsCount").value=3;
   document.getElementById("leadDays").value=7;
   document.getElementById("annualReminderDays").value=7;
-  document.getElementById("appointmentReminder").value="30";
-  document.getElementById("appointmentRepeat").value="none";
-  document.getElementById("appointmentOrdinal").value="1";
-  document.getElementById("appointmentWeekday").value="1";
   document.getElementById("cleaningFrequency").value="weekly";
   document.getElementById("cleaningStartDate").value=new Date().toISOString().slice(0,10);
   const itemSteps=document.getElementById("itemSteps"); if(itemSteps)itemSteps.value="";
@@ -1146,7 +1140,6 @@ function openAddDialog(type="todo",projectId="") {
 }
 
 function openAnnualDialog() { openAddDialog("annual"); }
-function openAppointmentDialog() { openAddDialog("appointment"); }
 function closeAddDialog() { dialog.close(); }
 
 function populateProjectPicker(selectedId="") {
@@ -1175,13 +1168,10 @@ function updateFormVisibility() {
   document.getElementById("cleaningStartLabel").classList.toggle("hidden",type!=="cleaning");
   document.getElementById("annualDateLabel").classList.toggle("hidden",type!=="annual");
   document.getElementById("annualReminderLabel").classList.toggle("hidden",type!=="annual");
-  document.getElementById("appointmentFields").classList.toggle("hidden",type!=="appointment");
-  document.getElementById("appointmentMonthlyPattern").classList.toggle("hidden",type!=="appointment" || document.getElementById("appointmentRepeat").value!=="monthlyOrdinal");
-  document.getElementById("appointmentCustomDatesLabel").classList.toggle("hidden",type!=="appointment" || document.getElementById("appointmentRepeat").value!=="selectedDates");
-  document.getElementById("dateLabel").classList.toggle("hidden",timing!=="date" || type==="annual" || type==="appointment" || routine);
+  document.getElementById("dateLabel").classList.toggle("hidden",timing!=="date" || type==="annual" || routine);
   document.getElementById("monthsLabel").classList.toggle("hidden",timing!=="months" || type==="annual" || routine);
   document.getElementById("leadLabel").classList.toggle("hidden",!(["date","months"].includes(timing)) || type==="annual" || routine);
-  timingType.closest("label").classList.toggle("hidden",type==="annual" || type==="cleaning" || type==="appointment" || routine);
+  timingType.closest("label").classList.toggle("hidden",type==="annual" || type==="cleaning" || routine);
   document.getElementById("detailsLabel").querySelector("textarea").placeholder =
     routine ? "For example: 10 minutes, after breakfast, or any helpful note" : "Notes, contact details, what needs doing...";
 }
@@ -1191,7 +1181,6 @@ itemType.addEventListener("change",()=>{
   updateFormVisibility();
 });
 timingType.addEventListener("change",updateFormVisibility);
-document.getElementById("appointmentRepeat")?.addEventListener("change",updateFormVisibility);
 
 function loadCommon(item,type,parentId="") {
   clearForm();
@@ -1234,29 +1223,8 @@ function editAnnual(id) {
   dialog.showModal();
 }
 
-function editAppointment(id) {
-  const item=data.appointments.find(x=>x.id===id);
-  if(!item)return;
-  clearForm(); itemType.value="appointment";
-  document.getElementById("editingId").value=item.id;
-  document.getElementById("itemName").value=item.name||"";
-  document.getElementById("itemDetails").value=item.details||"";
-  document.getElementById("appointmentDate").value=item.date||"";
-  document.getElementById("appointmentStart").value=item.startTime||"";
-  document.getElementById("appointmentEnd").value=item.endTime||"";
-  document.getElementById("appointmentLocation").value=item.location||"";
-  document.getElementById("appointmentLink").value=item.link||"";
-  document.getElementById("appointmentReminder").value=String(item.reminderMinutes??30);
-  document.getElementById("appointmentRepeat").value=item.repeat||"none";
-  document.getElementById("appointmentOrdinal").value=String(item.ordinal??1);
-  document.getElementById("appointmentWeekday").value=String(item.weekday??1);
-  document.getElementById("appointmentEndDate").value=item.repeatEndDate||"";
-  document.getElementById("appointmentCustomDates").value=(item.customDates||[]).join("\n");
-  document.getElementById("dialogTitle").textContent="Edit appointment";
-  updateFormVisibility(); dialog.showModal();
-}
-
-function saveCurrentItem(){
+addForm.addEventListener("submit",event=>{
+  event.preventDefault();
   const type=itemType.value;
   const id=document.getElementById("editingId").value;
   const parentId=document.getElementById("editingParentId").value || document.getElementById("projectPicker").value;
@@ -1265,7 +1233,7 @@ function saveCurrentItem(){
   const timing=timingType.value;
   const leadDays=Number(document.getElementById("leadDays").value || 7);
   syncStepBuilders();
-  if(!name){ alert("Please enter a name or title."); document.getElementById("itemName").focus(); return; }
+  if(!name)return;
 
   if(type==="daily" || type==="evening") {
     const list = type === "evening" ? data.eveningTasks : data.dailyTasks;
@@ -1273,16 +1241,6 @@ function saveCurrentItem(){
     if (id) list[list.findIndex(x => x.id === id)] = payload;
     else list.push(payload);
     saveData(); closeAddDialog(); renderAll(); return;
-  }
-
-  if(type==="appointment") {
-    const date=document.getElementById("appointmentDate").value; if(!date){ alert("Please choose the appointment date."); document.getElementById("appointmentDate").focus(); return; }
-    const repeat=document.getElementById("appointmentRepeat").value;
-    const customDates=document.getElementById("appointmentCustomDates").value.split(/\n|,/).map(x=>x.trim()).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x));
-    const payload={id:id||uid(),name,details,date,startTime:document.getElementById("appointmentStart").value||"",endTime:document.getElementById("appointmentEnd").value||"",location:document.getElementById("appointmentLocation").value.trim(),link:document.getElementById("appointmentLink").value.trim(),reminderMinutes:Number(document.getElementById("appointmentReminder").value||0),repeat,ordinal:Number(document.getElementById("appointmentOrdinal").value||1),weekday:Number(document.getElementById("appointmentWeekday").value||1),repeatEndDate:document.getElementById("appointmentEndDate").value||null,customDates};
-    if(id)data.appointments[data.appointments.findIndex(x=>x.id===id)]=payload;else data.appointments.push(payload);
-    if(pendingInboxAppointmentId){data.inbox=data.inbox.filter(x=>x.id!==pendingInboxAppointmentId);pendingInboxAppointmentId='';}
-    saveData(); closeAddDialog(); renderAll(); showSaved('Appointment saved and added to timeline'); return;
   }
 
   if(type==="cleaning") {
@@ -1370,9 +1328,7 @@ function saveCurrentItem(){
   }
 
   saveData(); closeAddDialog(); renderAll();
-}
-
-addForm.addEventListener("submit", event => { event.preventDefault(); saveCurrentItem(); });
+});
 
 function parseDatedSteps(text) {
   return String(text||"").split(/\n/).map(x=>x.trim()).filter(Boolean).map(line=>{
@@ -1455,17 +1411,15 @@ function renderAll() {
   renderFocusToday();
   renderInbox();
   renderWaiting();
-  updateListHubCounts();
-  renderMorningBriefing();
+  renderAppointments();
   renderTimeline();
-  renderWeeklyReview();
+  updateListHubCounts();
   renderProjectNextActions();
   renderTodayReminders();
   renderWeekly();
   renderCleaningToday();
   renderTodos();
   renderAnnualDates();
-  renderAppointments();
   renderProjects();
   renderCleaning();
   renderMainOverview();
@@ -1487,7 +1441,7 @@ function applyAppUpdate() {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.5", { updateViaCache: "none" });
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.6", { updateViaCache: "none" });
       if (registration.waiting) {
         waitingServiceWorker = registration.waiting;
         document.getElementById("updateButton")?.classList.remove("hidden");
@@ -1517,7 +1471,6 @@ function showAppView(view, button) {
   const titles = {
     home: ["Home", "Your day"],
     tasks: ["Lists", "All your saved entries, ready to manage"],
-    timeline: ["Timeline", "Your life in one chronological view"],
     planner: ["Planner", "Projects, dates and routines"]
   };
   document.querySelectorAll('.app-view-section').forEach(section => {
@@ -1559,39 +1512,25 @@ function activeTodoDashboardItems() {
     return [{...todo,source:"To-do",itemType:"todo"}];
   });
 }
-function appointmentReminderItems(from,to){
-  const rows=[];
-  data.appointments.forEach(item=>appointmentDates(item,from,to).forEach(d=>rows.push({
-    id:item.id,
-    name:item.name,
-    details:item.details,
-    source:`Appointment${item.startTime?' · '+formatTime(item.startTime):''}${item.location?' · '+item.location:''}`,
-    dueDate:isoFromDate(d),
-    itemType:'appointment'
-  })));
-  return rows;
-}
 function getTodayReminderItems() {
   const today=new Date(); today.setHours(12,0,0,0);
-  const dated=[...activeTodoDashboardItems(),...activeProjectDashboardItems()].filter(x=>!x.completed&&x.dueDate&&dateOnly(x.dueDate)<=today);
+  const dated=[...activeTodoDashboardItems(),...activeProjectDashboardItems(),...appointmentDashboardItems()].filter(x=>!x.completed&&x.dueDate&&dateOnly(x.dueDate)<=today);
   const annual=data.annualDates.map(item=>({item,status:annualStatus(item)})).filter(e=>e.status&&(e.status.isToday||e.status.inReminderWindow)).map(e=>({id:e.item.id,name:e.item.name,details:e.item.details,source:e.status.isToday?"Annual date today":"Annual reminder",dueDate:e.status.occurrence.toISOString().slice(0,10),itemType:"annual"}));
   const cleaning=data.cleaningTasks.filter(i=>isDueTodayOrEarlier(i.nextDue)).map(i=>({id:i.id,name:i.name,details:i.details,source:`Cleaning: ${i.room||"General"}`,dueDate:i.nextDue,itemType:"cleaning"}));
-  const appointments=appointmentReminderItems(today,today);
-  return [...dated,...annual,...cleaning,...appointments].sort((a,b)=>dateOnly(a.dueDate)-dateOnly(b.dueDate));
+  return [...dated,...annual,...cleaning].sort((a,b)=>dateOnly(a.dueDate)-dateOnly(b.dueDate));
 }
 function getWeeklyItems() {
   const today=new Date(); today.setHours(12,0,0,0); const end=new Date(today); end.setDate(end.getDate()+7);
-  const ordinary=[...activeTodoDashboardItems(),...activeProjectDashboardItems(),...data.cleaningTasks.map(i=>({id:i.id,name:i.name,details:i.details,source:`Cleaning: ${i.room||"General"}`,dueDate:i.nextDue,itemType:"cleaning",completed:false,leadDays:0}))]
+  const ordinary=[...activeTodoDashboardItems(),...activeProjectDashboardItems(),...appointmentDashboardItems(),...data.cleaningTasks.map(i=>({id:i.id,name:i.name,details:i.details,source:`Cleaning: ${i.room||"General"}`,dueDate:i.nextDue,itemType:"cleaning",completed:false,leadDays:0}))]
     .filter(i=>!i.completed&&i.dueDate).filter(i=>{const d=dateOnly(i.dueDate),lead=Number(i.leadDays||0),start=new Date(d);start.setDate(start.getDate()-lead);return start<=end;});
   const annual=data.annualDates.map(i=>{const o=nextAnnualOccurrence(i.monthDay);return {...i,source:i.kind||"Annual reminder",dueDate:o?o.toISOString().slice(0,10):null,annual:true,itemType:"annual"};}).filter(i=>i.dueDate&&dateOnly(i.dueDate)<=end);
-  const appointments=appointmentReminderItems(today,end);
-  return [...ordinary,...annual,...appointments].sort((a,b)=>dateOnly(a.dueDate)-dateOnly(b.dueDate));
+  return [...ordinary,...annual].sort((a,b)=>dateOnly(a.dueDate)-dateOnly(b.dueDate));
 }
 function toggleTodoStep(todoId,stepId){const todo=data.todos.find(x=>x.id===todoId),step=todo?.steps?.find(x=>x.id===stepId);if(!todo||!step)return;step.completed=!step.completed;todo.completed=(todo.steps||[]).length>0&&todo.steps.every(s=>s.completed);saveData();renderAll();}
-function openReminderItem(item){if(item.itemType==="todo")editTodo(item.id);else if(item.itemType==="todoStep")editTodo(item.parentId);else if(item.itemType==="step")editStep(item.parentId,item.id);else if(item.itemType==="cleaning")editCleaning(item.id);else if(item.itemType==="annual"||item.annual)editAnnual(item.id);else if(item.itemType==="project")editProject(item.id);else if(item.itemType==="appointment")editAppointment(item.id);}
+function openReminderItem(item){if(item.itemType==="todo")editTodo(item.id);else if(item.itemType==="todoStep")editTodo(item.parentId);else if(item.itemType==="step")editStep(item.parentId,item.id);else if(item.itemType==="cleaning")editCleaning(item.id);else if(item.itemType==="annual"||item.annual)editAnnual(item.id);else if(item.itemType==="appointment")openAppointmentDialog(item.id);else if(item.itemType==="project")editProject(item.id);}
 function completionFor(item){if(item.itemType==="cleaning")return()=>completeCleaning(item.id);if(item.itemType==="todo")return()=>toggleTodo(item.id);if(item.itemType==="todoStep")return()=>toggleTodoStep(item.parentId,item.id);if(item.itemType==="step")return()=>toggleStep(item.parentId,item.id);return null;}
-function renderTodayReminders(){const area=document.getElementById("todayRemindersArea"),items=getTodayReminderItems();area.innerHTML="";if(!items.length){area.innerHTML='<div class="empty-state">No dated reminders need attention today.</div>';return;}items.forEach(item=>{const overdue=item.itemType!=="annual"&&dateOnly(item.dueDate)<new Date(new Date().setHours(0,0,0,0));area.appendChild(compactReminderRow(item,{meta:`${item.source} · ${formatDate(item.dueDate,item.itemType!=="annual")}${overdue?" · OVERDUE":""}`,actionable:item.itemType!=="annual"&&item.itemType!=="appointment",onComplete:completionFor(item),clickable:true}));});}
-function renderWeekly(){const area=document.getElementById("weeklyArea"),items=getWeeklyItems();area.innerHTML="";if(!items.length){area.innerHTML='<div class="empty-state">Nothing needs attention this week.</div>';return;}items.forEach(item=>area.appendChild(compactReminderRow(item,{meta:`${item.source} · ${formatDate(item.dueDate,item.itemType!=="annual")}`,actionable:item.itemType!=="annual"&&item.itemType!=="appointment",onComplete:completionFor(item),clickable:true})));}
+function renderTodayReminders(){const area=document.getElementById("todayRemindersArea"),items=getTodayReminderItems();area.innerHTML="";if(!items.length){area.innerHTML='<div class="empty-state">No dated reminders need attention today.</div>';return;}items.forEach(item=>{const overdue=item.itemType!=="annual"&&dateOnly(item.dueDate)<new Date(new Date().setHours(0,0,0,0));area.appendChild(compactReminderRow(item,{meta:`${item.source} · ${formatDate(item.dueDate,item.itemType!=="annual")}${overdue?" · OVERDUE":""}`,actionable:item.itemType!=="annual",onComplete:completionFor(item),clickable:true}));});}
+function renderWeekly(){const area=document.getElementById("weeklyArea"),items=getWeeklyItems();area.innerHTML="";if(!items.length){area.innerHTML='<div class="empty-state">Nothing needs attention this week.</div>';return;}items.forEach(item=>area.appendChild(compactReminderRow(item,{meta:`${item.source} · ${formatDate(item.dueDate,item.itemType!=="annual")}`,actionable:item.itemType!=="annual",onComplete:completionFor(item),clickable:true})));}
 let activeAnchoredMenu=null;
 function closeAnchoredMenu(){if(activeAnchoredMenu){activeAnchoredMenu.remove();activeAnchoredMenu=null;}}
 function showAnchoredMenu(button){
@@ -1630,8 +1569,6 @@ function serializeStepBuilder(builderId){const box=document.getElementById(build
 function syncStepBuilders(){const a=document.getElementById('projectSteps');const b=document.getElementById('itemSteps');if(a)a.value=serializeStepBuilder('projectStepsBuilder');if(b)b.value=serializeStepBuilder('itemStepsBuilder');}
 
 
-let pendingInboxAppointmentId = '';
-
 /* ===== Version 10 experience ===== */
 function dueClass(value){
   if(!value) return 'status-future';
@@ -1646,8 +1583,7 @@ function focusCandidateRows(){
   data.cleaningTasks.filter(x=>isDueTodayOrEarlier(x.nextDue)).forEach(x=>rows.push({name:x.name,meta:`Cleaning · ${x.room||'Home'}`,dueDate:x.nextDue,kind:'Cleaning',action:()=>completeCleaning(x.id),open:()=>editCleaning(x.id),score:-2}));
   data.projects.filter(x=>!x.completed).forEach(p=>{const s=(p.steps||[]).find(x=>!x.completed);if(s)rows.push({name:s.name,meta:`Next action · ${p.name}`,dueDate:s.dueDate,kind:'Project',action:()=>toggleStep(p.id,s.id),open:()=>editStep(p.id,s.id),score:s.dueDate?daysBetween(today,dateOnly(s.dueDate)):12});});
   data.waiting.filter(x=>!x.completed&&x.reviewDate&&dateOnly(x.reviewDate)<=today).forEach(x=>rows.push({name:x.name,meta:'Waiting for · review due',dueDate:x.reviewDate,kind:'Waiting',open:()=>editCapture('waiting',x.id),score:0}));
-  appointmentReminderItems(today,today).forEach(x=>rows.push({name:x.name,meta:x.source,dueDate:x.dueDate,kind:'Appointment',open:()=>editAppointment(x.id),score:-5}));
-  return rows.sort((a,b)=>a.score-b.score).slice(0,9);
+  return rows.sort((a,b)=>a.score-b.score).slice(0,7);
 }
 function makeV10Row(item,{complete=true,menu='' }={}){
  const row=document.createElement('div'); row.className=`v10-row ${dueClass(item.dueDate)}`;
@@ -1678,32 +1614,14 @@ function captureDraft(){return {type:document.getElementById('captureType').valu
 function saveCapture(targetType=''){
  const d=captureDraft(); if(!d.name){document.getElementById('captureName').focus();return false;}
  const type=targetType||d.type;
- if(type==='appointment'){
-   pendingInboxAppointmentId=d.id||'';
-   closeCaptureDialog();
-   openAppointmentDialog();
-   document.getElementById('itemName').value=d.name;
-   document.getElementById('itemDetails').value=d.note||'';
-   document.getElementById('dialogTitle').textContent='Create appointment from thought';
-   return true;
- }
  if(type==='todo'){data.todos.unshift({id:uid(),name:d.name,details:d.note,timingType:'none',dueDate:'',completed:false,steps:[]});}
  else if(type==='project'){data.projects.unshift({id:uid(),name:d.name,details:d.note,timingType:'none',dueDate:'',completed:false,steps:[]});}
  else {const list=data[type]||(data[type]=[]),existing=list.find(x=>x.id===d.id);const record={id:existing?.id||uid(),name:d.name,note:d.note,reviewDate:type==='waiting'?d.reviewDate:'',completed:existing?.completed||false,createdAt:existing?.createdAt||new Date().toISOString()};if(existing)Object.assign(existing,record);else list.unshift(record);}
- if(targetType && d.type==='inbox' && d.id) data.inbox=data.inbox.filter(x=>x.id!==d.id);
- saveData();closeCaptureDialog();renderAll();showSaved(targetType?`Saved as ${type==='waiting'?'Waiting For':type}`:'Saved');return true;
+ saveData();closeCaptureDialog();renderAll();showSaved(targetType?`Saved as ${targetType==='waiting'?'Waiting For':targetType}`:'Saved');return true;
 }
 function saveCaptureAs(type){saveCapture(type);}
-function convertInbox(id,type){const x=data.inbox.find(x=>x.id===id);if(!x)return;data.inbox=data.inbox.filter(i=>i.id!==id);if(type==='todo')data.todos.unshift({id:uid(),name:x.name,details:x.note||'',timingType:'none',dueDate:'',completed:false,steps:[]});else if(type==='project')data.projects.unshift({id:uid(),name:x.name,details:x.note||'',timingType:'none',dueDate:'',completed:false,steps:[]});else data.waiting.unshift({id:uid(),name:x.name,note:x.note||'',reviewDate:'',completed:false});saveData();renderAll();showSaved('Thought converted');}
-function convertInboxToAppointment(id){
- const x=data.inbox.find(i=>i.id===id); if(!x)return;
- pendingInboxAppointmentId=id;
- openAppointmentDialog();
- document.getElementById('itemName').value=x.name||'';
- document.getElementById('itemDetails').value=x.note||'';
- document.getElementById('dialogTitle').textContent='Create appointment from Brain Inbox';
-}
-function renderInbox(){const full=document.getElementById('inboxArea'),preview=document.getElementById('inboxPreviewArea');[full,preview].forEach(area=>{if(!area)return;area.innerHTML='';const items=area===preview?data.inbox.slice(0,3):data.inbox;if(!items.length){area.innerHTML='<div class="empty-state">Nothing waiting in your inbox.</div>';return;}items.forEach(x=>area.appendChild(makeV10Row({name:x.name,meta:x.note||'Unsorted thought',open:()=>editCapture('inbox',x.id)},{complete:false,menu:compactMenu(`<button onclick="closeAnchoredMenu();editCapture('inbox','${x.id}')">Edit</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','todo')">Make a to-do</button><button onclick="closeAnchoredMenu();editCapture('inbox','${x.id}')">Organise / choose type</button><button onclick="closeAnchoredMenu();convertInboxToAppointment('${x.id}')">Make an appointment</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','project')">Make a project</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','waiting')">Move to Waiting For</button><button class="danger-text" onclick="closeAnchoredMenu();deleteCapture('inbox','${x.id}')">Delete</button>`,x.name)})));});}
+function convertInbox(id,type){const x=data.inbox.find(x=>x.id===id);if(!x)return;data.inbox=data.inbox.filter(i=>i.id!==id);if(type==='todo')data.todos.unshift({id:uid(),name:x.name,details:x.note||'',timingType:'none',dueDate:'',completed:false,steps:[]});else if(type==='project')data.projects.unshift({id:uid(),name:x.name,details:x.note||'',timingType:'none',dueDate:'',completed:false,steps:[]});else if(type==='appointment'){data.inbox.unshift(x);openAppointmentDialog('',x.name,x.note||'');return;}else data.waiting.unshift({id:uid(),name:x.name,note:x.note||'',reviewDate:'',completed:false});saveData();renderAll();showSaved('Thought converted');}
+function renderInbox(){const full=document.getElementById('inboxArea'),preview=document.getElementById('inboxPreviewArea');[full,preview].forEach(area=>{if(!area)return;area.innerHTML='';const items=area===preview?data.inbox.slice(0,3):data.inbox;if(!items.length){area.innerHTML='<div class="empty-state">Nothing waiting in your inbox.</div>';return;}items.forEach(x=>area.appendChild(makeV10Row({name:x.name,meta:x.note||'Unsorted thought',open:()=>editCapture('inbox',x.id)},{complete:false,menu:compactMenu(`<button onclick="closeAnchoredMenu();editCapture('inbox','${x.id}')">Edit</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','todo')">Make a to-do</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','project')">Make a project</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','appointment')">Make an appointment</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','waiting')">Move to Waiting For</button><button class="danger-text" onclick="closeAnchoredMenu();deleteCapture('inbox','${x.id}')">Delete</button>`,x.name)})));});}
 function renderWaiting(){const area=document.getElementById('waitingArea');if(!area)return;area.innerHTML='';if(!data.waiting.length){area.innerHTML='<div class="empty-state">Nothing being waited for.</div>';return;}data.waiting.forEach(x=>area.appendChild(makeV10Row({name:x.name,meta:x.reviewDate?`Review ${formatDate(x.reviewDate)}`:(x.note||'No review date'),dueDate:x.reviewDate,action:()=>completeWaiting(x.id),open:()=>editCapture('waiting',x.id)},{menu:compactMenu(`<button onclick="closeAnchoredMenu();editCapture('waiting','${x.id}')">Edit</button><button onclick="closeAnchoredMenu();completeWaiting('${x.id}')">${x.completed?'Mark active':'Complete'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteCapture('waiting','${x.id}')">Delete</button>`,x.name)})));}
 function startVoiceCapture(type=''){
  if(type) openCaptureDialog(type);
@@ -1724,9 +1642,7 @@ function updateListHubCounts(){
  Object.entries(counts).forEach(([id,n])=>{const el=document.getElementById(id);if(el)el.textContent=`${n} ${n===1?'item':'items'}`;});
 }
 function jumpToList(id){
- showAppView('tasks');
- const el=document.getElementById(id); if(!el)return;
- requestAnimationFrame(()=>{el.scrollIntoView({behavior:'smooth',block:'start'});el.classList.add('list-highlight');setTimeout(()=>el.classList.remove('list-highlight'),1200);});
+ const el=document.getElementById(id); if(!el)return; el.scrollIntoView({behavior:'smooth',block:'start'}); el.classList.add('list-highlight'); setTimeout(()=>el.classList.remove('list-highlight'),900);
 }
 function filterMyLists(query=''){
  const q=String(query).trim().toLowerCase();
@@ -1738,67 +1654,68 @@ function filterMyLists(query=''){
 }
 
 
+/* ===== V11.6 core appointments rebuild ===== */
+function appointmentDashboardItems(){
+  return (data.appointments||[]).flatMap(a=>appointmentOccurrences(a, new Date(), 60).map(o=>({id:a.id,name:a.name,details:a.notes||'',source:'Appointment',dueDate:o.date,itemType:'appointment',time:a.time||'',occurrenceDate:o.date})));
+}
+function addMonthsSafe(date,n){const d=new Date(date);const day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return d;}
+function appointmentOccurrences(a,from=new Date(),days=400){
+  if(!a||!a.date)return[]; const start=dateOnly(a.date); if(isNaN(start))return[];
+  const floor=new Date(from);floor.setHours(0,0,0,0);const end=new Date(floor);end.setDate(end.getDate()+days);
+  const out=[];let d=new Date(start),guard=0;
+  while(d<floor&&guard++<1000){if(a.repeat==='weekly')d.setDate(d.getDate()+7);else if(a.repeat==='fortnightly')d.setDate(d.getDate()+14);else if(a.repeat==='monthly')d=addMonthsSafe(d,1);else if(a.repeat==='yearly')d=addMonthsSafe(d,12);else break;}
+  guard=0;while(d<=end&&guard++<500){if(d>=floor)out.push({date:localDateKey(d)});if(a.repeat==='weekly')d.setDate(d.getDate()+7);else if(a.repeat==='fortnightly')d.setDate(d.getDate()+14);else if(a.repeat==='monthly')d=addMonthsSafe(d,1);else if(a.repeat==='yearly')d=addMonthsSafe(d,12);else break;}
+  return out;
+}
+function openAppointmentDialog(id='',prefillName='',prefillNotes=''){
+  const a=(data.appointments||[]).find(x=>x.id===id);
+  document.getElementById('appointmentId').value=a?.id||'';
+  document.getElementById('appointmentName').value=a?.name||prefillName||'';
+  document.getElementById('appointmentDate').value=a?.date||localDateKey();
+  document.getElementById('appointmentTime').value=a?.time||'';
+  document.getElementById('appointmentEndTime').value=a?.endTime||'';
+  document.getElementById('appointmentLocation').value=a?.location||'';
+  document.getElementById('appointmentNotes').value=a?.notes||prefillNotes||'';
+  document.getElementById('appointmentRepeat').value=a?.repeat||'none';
+  document.getElementById('appointmentDialogTitle').textContent=a?'Edit appointment':'Add appointment';
+  const dlg=document.getElementById('appointmentDialog');if(dlg.showModal)dlg.showModal();else dlg.setAttribute('open','');
+  setTimeout(()=>document.getElementById('appointmentName').focus(),50);
+}
+function closeAppointmentDialog(){const d=document.getElementById('appointmentDialog');if(d.open&&d.close)d.close();else d.removeAttribute('open');}
+function saveAppointment(){
+  try{
+    const name=document.getElementById('appointmentName').value.trim();const date=document.getElementById('appointmentDate').value;
+    if(!name){alert('Please enter an appointment title.');document.getElementById('appointmentName').focus();return false;}
+    if(!date){alert('Please choose a date.');document.getElementById('appointmentDate').focus();return false;}
+    const id=document.getElementById('appointmentId').value;const existing=(data.appointments||[]).find(x=>x.id===id);
+    const rec={id:existing?.id||uid(),name,date,time:document.getElementById('appointmentTime').value,endTime:document.getElementById('appointmentEndTime').value,location:document.getElementById('appointmentLocation').value.trim(),notes:document.getElementById('appointmentNotes').value.trim(),repeat:document.getElementById('appointmentRepeat').value,createdAt:existing?.createdAt||new Date().toISOString()};
+    if(existing)Object.assign(existing,rec);else data.appointments.unshift(rec);
+    saveData();closeAppointmentDialog();renderAll();showSaved('Appointment saved');return true;
+  }catch(e){console.error(e);alert('The appointment could not be saved. Please try again.');return false;}
+}
+function deleteAppointment(id){if(!confirm('Delete this appointment?'))return;data.appointments=data.appointments.filter(x=>x.id!==id);saveData();renderAll();}
+function renderAppointments(){const area=document.getElementById('appointmentsArea');if(!area)return;area.innerHTML='';const items=[...(data.appointments||[])].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));if(!items.length){area.innerHTML='<div class="empty-state">No appointments yet.</div>';return;}items.forEach(a=>{const row=document.createElement('div');row.className='compact-manage-row';row.innerHTML=`<button class="compact-row-main" onclick="openAppointmentDialog('${a.id}')"><span class="compact-row-title">${escapeHtml(a.name)}</span><span class="compact-row-meta">${formatDate(a.date)}${a.time?' · '+a.time:''}${a.location?' · '+escapeHtml(a.location):''}${a.repeat&&a.repeat!=='none'?' · repeats '+a.repeat:''}</span></button>${compactMenu(`<button onclick="closeAnchoredMenu();openAppointmentDialog('${a.id}')">Edit</button><button class="danger-text" onclick="closeAnchoredMenu();deleteAppointment('${a.id}')">Delete</button>`,a.name)}`;area.appendChild(row);});}
+function renderTimeline(){const area=document.getElementById('timelineArea');if(!area)return;area.innerHTML='';const now=new Date();const items=(data.appointments||[]).flatMap(a=>appointmentOccurrences(a,now,120).map(o=>({...a,occurrenceDate:o.date}))).sort((a,b)=>(a.occurrenceDate+a.time).localeCompare(b.occurrenceDate+b.time));if(!items.length){area.innerHTML='<div class="empty-state">No upcoming appointments.</div>';return;}items.forEach(a=>area.appendChild(makeV10Row({name:a.name,meta:`${formatDate(a.occurrenceDate)}${a.time?' · '+a.time:''}${a.location?' · '+a.location:''}`,dueDate:a.occurrenceDate,open:()=>openAppointmentDialog(a.id)},{complete:false})));}
 
-function formatTime(value){if(!value)return '';const [h,m]=value.split(':').map(Number);const d=new Date();d.setHours(h,m||0,0,0);return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
-function nthWeekdayOfMonth(year,month,weekday,ordinal){
- const first=new Date(year,month,1,12);let day=1+((weekday-first.getDay()+7)%7)+(ordinal-1)*7;const d=new Date(year,month,day,12);return d.getMonth()===month?d:null;
+/* Safe Brain Inbox conversion: an inbox item is only removed after the destination is saved. */
+let pendingInboxAppointmentId='';
+function convertInbox(id,type){
+  const x=data.inbox.find(item=>item.id===id);if(!x)return;
+  if(type==='appointment'){
+    pendingInboxAppointmentId=id;
+    openAppointmentDialog('',x.name,x.note||'');
+    return;
+  }
+  if(type==='todo')data.todos.unshift({id:uid(),name:x.name,details:x.note||'',timingType:'none',dueDate:'',completed:false,steps:[]});
+  else if(type==='project')data.projects.unshift({id:uid(),name:x.name,details:x.note||'',timingType:'none',dueDate:'',completed:false,steps:[]});
+  else data.waiting.unshift({id:uid(),name:x.name,note:x.note||'',reviewDate:'',completed:false});
+  data.inbox=data.inbox.filter(item=>item.id!==id);saveData();renderAll();showSaved('Thought converted');
 }
-function appointmentDates(item,from,to){
- const out=[];
- const start=dateOnly(item.date);
- if(!start)return out;
- const lower=new Date(from); lower.setHours(0,0,0,0);
- const requestedUpper=new Date(to); requestedUpper.setHours(23,59,59,999);
- const repeatUpper=item.repeatEndDate?dateOnly(item.repeatEndDate):requestedUpper;
- const upper=repeatUpper&&repeatUpper<requestedUpper?repeatUpper:requestedUpper;
- const add=d=>{const copy=new Date(d);copy.setHours(12,0,0,0);if(copy>=lower&&copy<=upper&&!out.some(x=>isoFromDate(x)===isoFromDate(copy)))out.push(copy);};
- const repeat=item.repeat||'none';
- if(repeat==='selectedDates'){[item.date,...(item.customDates||[])].forEach(v=>{const d=dateOnly(v);if(d)add(d);});return out;}
- if(repeat==='none'){add(start);return out;}
- if(repeat==='monthlyOrdinal'){
-   let cursor=new Date(start.getFullYear(),start.getMonth(),1,12);const last=new Date(upper.getFullYear(),upper.getMonth(),1,12);
-   while(cursor<=last){const d=nthWeekdayOfMonth(cursor.getFullYear(),cursor.getMonth(),Number(item.weekday??start.getDay()),Number(item.ordinal??1));if(d&&d>=start)add(d);cursor.setMonth(cursor.getMonth()+1);}return out;
- }
- const step=repeat==='daily'?1:repeat==='fortnightly'?14:repeat==='weekly'?7:null;
- if(step){let d=new Date(start);while(d<lower)d.setDate(d.getDate()+step);while(d<=upper){add(d);d.setDate(d.getDate()+step);}return out;}
- if(repeat==='monthlyDate'){let y=start.getFullYear(),m=start.getMonth();while(new Date(y,m,start.getDate(),12)<lower){m++;}while(true){const d=new Date(y,m,start.getDate(),12);if(d>upper)break;if(d.getDate()===start.getDate())add(d);m++;}return out;}
- if(repeat==='yearly'){let d=new Date(start);while(d<lower)d.setFullYear(d.getFullYear()+1);while(d<=upper){add(d);d.setFullYear(d.getFullYear()+1);}return out;}
- add(start);return out;
-}
-function appointmentOccurrences(anchor=new Date(),monthsAhead=18){const from=new Date(anchor);from.setHours(0,0,0,0);from.setDate(from.getDate()-31);const to=new Date(anchor);to.setMonth(to.getMonth()+monthsAhead);to.setHours(23,59,59,999);const rows=[];data.appointments.forEach(item=>appointmentDates(item,from,to).forEach(d=>rows.push({item,date:isoFromDate(d)})));return rows.sort((a,b)=>xDate(a.date)-xDate(b.date));}
-function recurrenceText(item){return {none:'One-off',daily:'Daily',weekly:'Weekly',fortnightly:'Fortnightly',monthlyDate:'Monthly',monthlyOrdinal:`${['','First','Second','Third','Fourth','Fifth'][item.ordinal||1]} ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][item.weekday??1]}`,yearly:'Yearly',selectedDates:'Selected dates'}[item.repeat||'none']||'One-off';}
-function renderAppointments(){const area=document.getElementById('appointmentsArea');if(!area)return;area.innerHTML='';if(!data.appointments.length){area.innerHTML='<div class="empty-state">No appointments or events yet.</div>';return;}[...data.appointments].sort((a,b)=>xDate(a.date)-xDate(b.date)).forEach(item=>{const row=document.createElement('div');row.className='compact-manage-row appointment-manage-row';const time=[item.startTime&&formatTime(item.startTime),item.endTime&&formatTime(item.endTime)].filter(Boolean).join('–');row.innerHTML=`<button class="compact-row-main" onclick="editAppointment('${item.id}')"><span class="compact-row-title">📅 ${escapeHtml(item.name)}</span><span class="compact-row-meta">${formatDate(item.date)}${time?' · '+time:''}${item.location?' · '+escapeHtml(item.location):''} · ${recurrenceText(item)}</span></button>${compactMenu(`<button onclick="closeAnchoredMenu();editAppointment('${item.id}')">Edit</button>${item.link?`<button onclick="closeAnchoredMenu();window.open('${escapeHtml(item.link)}','_blank')">Open link</button>`:''}<button class="danger-text" onclick="closeAnchoredMenu();deleteAppointment('${item.id}')">Delete</button>`,item.name)}`;area.appendChild(row);});}
-
-/* ===== Version 11 external-brain features ===== */
-let timelineRange='all';
-function isoFromDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function timelineItems(){
- const items=[];
- data.todos.filter(x=>!x.completed).forEach(x=>{if(x.dueDate)items.push({date:x.dueDate,name:x.name,source:'To-do',kind:'todo',open:()=>editTodo(x.id),complete:()=>toggleTodo(x.id)});(x.steps||[]).filter(s=>!s.completed&&s.dueDate).forEach(s=>items.push({date:s.dueDate,name:s.name,source:`To-do: ${x.name}`,kind:'step',open:()=>editStep(x.id,s.id),complete:()=>toggleTodoStep(x.id,s.id)}));});
- data.projects.filter(x=>!x.completed).forEach(p=>{const s=(p.steps||[]).find(x=>!x.completed);if(s){const date=s.dueDate||p.dueDate;if(date)items.push({date,name:s.name,source:`Project: ${p.name}`,kind:'project',open:()=>editStep(p.id,s.id),complete:()=>toggleStep(p.id,s.id)});}else if(p.dueDate)items.push({date:p.dueDate,name:p.name,source:'Project review',kind:'project',open:()=>editProject(p.id)});});
- data.cleaningTasks.forEach(x=>{if(x.nextDue)items.push({date:x.nextDue,name:x.name,source:`Cleaning · ${x.room||'Home'}`,kind:'cleaning',open:()=>editCleaning(x.id),complete:()=>completeCleaning(x.id)});});
- data.waiting.filter(x=>!x.completed&&x.reviewDate).forEach(x=>items.push({date:x.reviewDate,name:x.name,source:'Waiting For review',kind:'waiting',open:()=>editCapture('waiting',x.id),complete:()=>completeWaiting(x.id)}));
- appointmentOccurrences(new Date(),18).forEach(o=>items.push({date:o.date,name:o.item.name,source:`Appointment${o.item.startTime?' · '+formatTime(o.item.startTime):''}${o.item.location?' · '+o.item.location:''}`,kind:'appointment',open:()=>editAppointment(o.item.id)}));
- data.annualDates.forEach(x=>{const d=nextAnnualOccurrence(x.monthDay);if(d)items.push({date:isoFromDate(d),name:x.name,source:'Birthday / annual date',kind:'annual',open:()=>editAnnual(x.id)});});
- return items.filter(x=>x.date).sort((a,b)=>xDate(a.date)-xDate(b.date));
-}
-function xDate(v){return dateOnly(v)?.getTime()||Infinity;}
-function timelineGroup(date){const d=dateOnly(date),today=new Date();today.setHours(12,0,0,0);const delta=daysBetween(today,d);if(delta<0)return 'Overdue';if(delta===0)return 'Today';if(delta===1)return 'Tomorrow';if(delta<=7)return 'This week';if(delta<=30)return 'Next 30 days';return d.toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
-function setTimelineRange(range,button){timelineRange=range;document.querySelectorAll('.timeline-filters button').forEach(b=>b.classList.remove('active'));button?.classList.add('active');renderTimeline();}
-function renderTimeline(){
- const area=document.getElementById('timelineArea');if(!area)return;const today=new Date();today.setHours(12,0,0,0);let items=timelineItems();
- if(timelineRange==='month')items=items.filter(x=>{const n=daysBetween(today,dateOnly(x.date));return n>=-365&&n<=30;});
- if(timelineRange==='future')items=items.filter(x=>daysBetween(today,dateOnly(x.date))>30);
- area.innerHTML='';if(!items.length){area.innerHTML='<div class="empty-state">Your timeline is clear for this range.</div>';return;}
- let last='';items.forEach(item=>{const group=timelineGroup(item.date);if(group!==last){const h=document.createElement('h3');h.className='timeline-group-title';h.textContent=group;area.appendChild(h);last=group;}const row=document.createElement('div');row.className=`timeline-row ${dueClass(item.date)}`;row.innerHTML=`<span class="timeline-marker"></span><button type="button" class="timeline-main"><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.source)} · ${formatDate(item.date)}</small></button>${item.complete?'<button type="button" class="timeline-check" aria-label="Complete">✓</button>':''}`;row.querySelector('.timeline-main').onclick=item.open;if(item.complete)row.querySelector('.timeline-check').onclick=item.complete;area.appendChild(row);});
-}
-function renderMorningBriefing(){
- const area=document.getElementById('morningBriefingArea');if(!area)return;const hour=new Date().getHours();const greeting=document.getElementById('briefingGreeting');if(greeting)greeting.textContent=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
- const today=new Date();today.setHours(12,0,0,0);const dated=timelineItems();const dueToday=dated.filter(x=>daysBetween(today,dateOnly(x.date))===0).length;const overdue=dated.filter(x=>daysBetween(today,dateOnly(x.date))<0&&x.kind!=='annual').length;const projects=data.projects.filter(p=>!p.completed&&(p.steps||[]).some(s=>!s.completed)).length;const thoughts=data.inbox.length;
- area.innerHTML=`<div><strong>${dueToday}</strong><span>due today</span></div><div><strong>${overdue}</strong><span>overdue</span></div><div><strong>${projects}</strong><span>projects moving</span></div><div><strong>${thoughts}</strong><span>in Brain Inbox</span></div>`;
-}
-function renderWeeklyReview(){
- const area=document.getElementById('weeklyReviewArea');if(!area)return;const today=new Date();today.setHours(12,0,0,0);const staleProjects=data.projects.filter(p=>!p.completed&&!(p.steps||[]).some(s=>!s.completed)).length;const waitingDue=data.waiting.filter(x=>!x.completed&&x.reviewDate&&dateOnly(x.reviewDate)<=today).length;const completed=data.todos.filter(x=>x.completed).length+data.projects.filter(x=>x.completed).length;
- const checks=[{n:data.inbox.length,text:'thoughts waiting to be processed',action:()=>showAppView('tasks')},{n:waitingDue,text:'Waiting For items need a review',action:()=>showAppView('tasks')},{n:staleProjects,text:'active projects need a next step',action:()=>showAppView('tasks')},{n:completed,text:'completed main items ready to review',action:()=>showAppView('tasks')}];
- area.innerHTML='';checks.forEach(x=>{const b=document.createElement('button');b.type='button';b.className='review-row';b.innerHTML=`<strong>${x.n}</strong><span>${x.text}</span><span>›</span>`;b.onclick=x.action;area.appendChild(b);});
-}
+const saveAppointmentCore=saveAppointment;
+saveAppointment=function(){
+  const saved=saveAppointmentCore();
+  if(saved&&pendingInboxAppointmentId){data.inbox=data.inbox.filter(x=>x.id!==pendingInboxAppointmentId);pendingInboxAppointmentId='';saveData();renderAll();}
+  return saved;
+};
+const closeAppointmentDialogCore=closeAppointmentDialog;
+closeAppointmentDialog=function(){pendingInboxAppointmentId='';closeAppointmentDialogCore();};

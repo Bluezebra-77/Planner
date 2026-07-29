@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Life Planner</title>
-  <link rel="stylesheet" href="style.css?v=11.5">
-  <link rel="manifest" href="manifest.json?v=11.5">
+  <link rel="stylesheet" href="style.css?v=10.3">
+  <link rel="manifest" href="manifest.json?v=10.3">
   <meta name="theme-color" content="#1769c2">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -18,7 +18,7 @@
     <header class="app-header">
       <div>
         <p class="eyebrow">My flexible daily planner</p>
-        <h1 class="brand-title"><img src="icon-192.png" class="header-zebra" alt=""><span id="plannerTitle">My Life Planner</span> <span class="brand-77">77</span> <span class="version-badge">V11.5</span></h1>
+        <h1 class="brand-title"><img src="icon-192.png" class="header-zebra" alt=""><span id="plannerTitle">My Life Planner</span> <span class="brand-77">77</span> <span class="version-badge">v11.6</span></h1>
         <p id="todayDate" class="date-line"></p>
       </div>
       <div class="header-actions">
@@ -38,11 +38,6 @@
       <h2 id="viewTitle">Your day</h2>
     </section>
 
-    <section class="panel morning-briefing app-view-section" data-view="home">
-      <div class="section-heading"><div><p class="eyebrow">Your automatic overview</p><h2 id="briefingGreeting">Good morning</h2></div><span class="briefing-icon">☀️</span></div>
-      <div id="morningBriefingArea" class="briefing-grid"></div>
-    </section>
-
     <section class="panel focus-panel app-view-section" data-view="home">
       <div class="focus-heading"><div><p class="eyebrow">Your calm starting point</p><h2>Focus Today</h2><p>Only the things most worth your attention now.</p></div><button class="icon-button" type="button" onclick="refreshFocusToday()" aria-label="Refresh focus">↻</button></div>
       <div id="focusTodayArea" class="focus-list"></div>
@@ -55,7 +50,7 @@
     </section>
 
     <section class="panel app-view-section" data-view="home">
-      <div class="section-heading"><div><p class="eyebrow">Capture first, organise later</p><h2>Brain Inbox</h2></div><div class="section-actions"><button class="voice-button" type="button" onclick="startVoiceCapture('inbox')" aria-label="Dictate a thought" title="Dictate a thought">🎤</button><button class="section-plus" type="button" onclick="openCaptureDialog('inbox')" aria-label="Capture to Brain Inbox">+</button></div></div>
+      <div class="section-heading"><div><p class="eyebrow">Capture first, organise later</p><h2>Thoughts Inbox</h2></div><div class="section-actions"><button class="voice-button" type="button" onclick="startVoiceCapture('inbox')" aria-label="Dictate a thought" title="Dictate a thought">🎤</button><button class="section-plus" type="button" onclick="openCaptureDialog('inbox')" aria-label="Capture a thought">+</button></div></div>
       <div id="inboxPreviewArea" class="compact-list"></div>
     </section>
 
@@ -77,7 +72,7 @@
     </section>
     <section class="panel app-view-section lists-hub" data-view="tasks">
       <div class="section-heading"><div><p class="eyebrow">Control centre</p><h2>My Lists</h2></div></div>
-      <p class="card-meta">Choose a list below to open its full editable management section. Every saved item remains available here, including past information.</p>
+      <p class="card-meta">Browse and manage everything you have saved. Search across all lists or jump straight to one collection.</p>
       <label class="list-search-label">Search all lists<input id="globalListSearch" type="search" placeholder="Search tasks, projects, thoughts…" oninput="filterMyLists(this.value)"></label>
       <div class="list-hub-grid">
         <button type="button" onclick="jumpToList('todoListSection')"><span>✅</span><strong>To-dos</strong><small id="todoHubCount">0 items</small></button>
@@ -102,8 +97,14 @@
       <div id="todoArea" class="stack-list"></div>
     </section>
 
+    <section id="appointmentsListSection" class="panel app-view-section managed-list-section" data-view="tasks">
+      <div class="section-heading"><div><p class="eyebrow">Calendar commitments</p><h2>Appointments and events</h2></div><button class="section-plus" type="button" onclick="openAppointmentDialog()" aria-label="Add appointment">+</button></div>
+      <p class="card-meta">Every appointment appears here. Select an item to edit it.</p>
+      <div id="appointmentsArea" class="stack-list"></div>
+    </section>
+
     <section id="inboxListSection" class="panel app-view-section managed-list-section" data-view="tasks">
-      <div class="section-heading"><div><p class="eyebrow">Quick capture</p><h2>Brain Inbox</h2></div><button class="section-plus" type="button" onclick="openCaptureDialog('inbox')" aria-label="Add thought">+</button></div>
+      <div class="section-heading"><div><p class="eyebrow">Quick capture</p><h2>Thoughts Inbox</h2></div><button class="section-plus" type="button" onclick="openCaptureDialog('inbox')" aria-label="Add thought">+</button></div>
       <p class="card-meta">Capture anything without deciding where it belongs. Convert it later from the menu.</p>
       <div id="inboxArea" class="stack-list"></div>
     </section>
@@ -112,12 +113,6 @@
       <div class="section-heading"><div><p class="eyebrow">Keep on your radar</p><h2>Waiting For</h2></div><button class="section-plus" type="button" onclick="openCaptureDialog('waiting')" aria-label="Add waiting item">+</button></div>
       <p class="card-meta">Things that are not yours to do, but still need watching.</p>
       <div id="waitingArea" class="stack-list"></div>
-    </section>
-
-    <section id="appointmentsListSection" class="panel app-view-section managed-list-section" data-view="tasks">
-      <div class="section-heading"><div><p class="eyebrow">Calendar commitments</p><h2>Appointments &amp; Events</h2></div><button class="section-plus" type="button" onclick="openAppointmentDialog()" aria-label="Add appointment">+</button></div>
-      <p class="card-meta">One-off and recurring meetings, Zoom calls, clubs and appointments. They appear automatically in Today &amp; Beyond.</p>
-      <div id="appointmentsArea" class="stack-list"></div>
     </section>
 
     <section id="annualListSection" class="panel app-view-section managed-list-section" data-view="tasks">
@@ -158,16 +153,9 @@
     </section>
 
 
-    <section class="panel timeline-panel app-view-section" data-view="timeline">
-      <div class="section-heading"><div><p class="eyebrow">Everything in date order</p><h2>Life Timeline</h2></div><button class="icon-button" type="button" onclick="renderTimeline()" aria-label="Refresh timeline">↻</button></div>
-      <p class="card-meta">Tasks, appointments, project actions, cleaning, annual dates and Waiting For reviews appear together automatically.</p>
-      <div class="timeline-filters"><button type="button" class="active" onclick="setTimelineRange('all',this)">All</button><button type="button" onclick="setTimelineRange('month',this)">Next 30 days</button><button type="button" onclick="setTimelineRange('future',this)">Later</button></div>
-      <div id="timelineArea" class="timeline-area"></div>
-    </section>
-
-    <section class="panel app-view-section" data-view="timeline">
-      <div class="section-heading"><div><p class="eyebrow">Keep the system clear</p><h2>Weekly Review</h2></div></div>
-      <div id="weeklyReviewArea" class="review-list"></div>
+    <section class="panel app-view-section" data-view="planner">
+      <div class="section-heading"><div><p class="eyebrow">Dated commitments</p><h2>Today &amp; Beyond</h2></div><button class="section-plus" type="button" onclick="openAppointmentDialog()" aria-label="Add appointment">+</button></div>
+      <div id="timelineArea" class="stack-list"></div>
     </section>
 
     <section class="panel app-view-section" data-view="planner">
@@ -220,19 +208,36 @@
         <details class="storage-details"><summary>Where can I find my backups?</summary><p><strong>Automatic daily backups:</strong> stored privately inside this browser on this device.</p><p><strong>Visible backup files:</strong> choose Save backup file or Share backup, then save to iCloud Drive, OneDrive or Files.</p></details>
         <div class="card-actions"><button type="button" onclick="exportPlanner()">Save backup file</button><button type="button" onclick="sharePlannerBackup()">Share backup</button><button type="button" class="secondary-button" onclick="document.getElementById('importFile').click()">Import backup</button><input id="importFile" class="hidden" type="file" accept=".json,application/json" onchange="importPlanner(event)"></div>
         <p id="storageStatus" class="storage-status"></p><p id="saveIndicator" class="save-indicator" aria-live="polite">Ready</p>
-        <details class="storage-details"><summary>About My Life Planner</summary><p><strong>Version:</strong> 11.5</p><p><strong>Updated:</strong> 29 July 2026</p><p><strong>Designed by Blue Zebra 77</strong></p><p>Updates change the app layout but do not intentionally replace your personal information. Your data stays in this browser unless you export it.</p></details>
+        <details class="storage-details"><summary>About My Life Planner</summary><p><strong>Version:</strong> 11.6</p><p><strong>Updated:</strong> 29 July 2026</p><p><strong>Designed by Blue Zebra 77</strong></p><p>Updates change the app layout but do not intentionally replace your personal information. Your data stays in this browser unless you export it.</p></details>
       </div>
     </dialog>
 
     <nav class="bottom-nav" aria-label="Main navigation">
       <button type="button" class="nav-button active" data-tab="home" onclick="showAppView('home', this)"><span>🏠</span><small>Home</small></button>
       <button type="button" class="nav-button" data-tab="tasks" onclick="showAppView('tasks', this)"><span>✅</span><small>Lists</small></button>
-      <button type="button" class="nav-button" data-tab="timeline" onclick="showAppView('timeline', this)"><span>🗓️</span><small>Timeline</small></button>
+      <button type="button" class="nav-button" data-tab="planner" onclick="showAppView('planner', this)"><span>📅</span><small>Planner</small></button>
       <button type="button" class="nav-button" onclick="openAddDialog()"><span>➕</span><small>Add</small></button>
       <button type="button" class="nav-button" onclick="openSettingsDialog()"><span>⚙</span><small>Settings</small></button>
     </nav>
   </main>
 
+
+  <dialog id="appointmentDialog" class="manager-dialog">
+    <form id="appointmentForm" onsubmit="event.preventDefault(); saveAppointment();">
+      <div class="dialog-header"><div><p class="eyebrow">Calendar</p><h2 id="appointmentDialogTitle">Add appointment</h2></div><button type="button" class="dialog-close" onclick="closeAppointmentDialog()" aria-label="Close">×</button></div>
+      <input id="appointmentId" type="hidden">
+      <div class="dialog-content settings-grid">
+        <label>Title<input id="appointmentName" required maxlength="120"></label>
+        <label>Date<input id="appointmentDate" type="date" required></label>
+        <label>Start time<input id="appointmentTime" type="time"></label>
+        <label>End time<input id="appointmentEndTime" type="time"></label>
+        <label>Location<input id="appointmentLocation" maxlength="160"></label>
+        <label>Notes<textarea id="appointmentNotes" rows="4"></textarea></label>
+        <label>Repeat<select id="appointmentRepeat"><option value="none">Does not repeat</option><option value="weekly">Every week</option><option value="fortnightly">Every 2 weeks</option><option value="monthly">Every month</option><option value="yearly">Every year</option></select></label>
+      </div>
+      <div class="dialog-actions"><button type="button" class="secondary-button" onclick="closeAppointmentDialog()">Cancel</button><button type="submit">Save appointment</button></div>
+    </form>
+  </dialog>
 
   <dialog id="routineManagerDialog" class="manager-dialog">
     <div class="dialog-header">
@@ -276,7 +281,6 @@
           <option value="project">A new project</option>
           <option value="step">A step to an existing project</option>
           <option value="annual">A birthday or annual date</option>
-          <option value="appointment">An appointment or event</option>
           <option value="cleaning">A cleaning task</option>
           <option value="daily">A daily rhythm task</option>
           <option value="evening">An evening task</option>
@@ -352,17 +356,6 @@
         <input id="annualReminderDays" type="number" min="0" max="90" value="7">
       </label>
 
-      <div id="appointmentFields" class="hidden appointment-fields">
-        <div class="two-column-fields"><label>Date<input id="appointmentDate" type="date"></label><label>Start time<input id="appointmentStart" type="time"></label></div>
-        <div class="two-column-fields"><label>End time (optional)<input id="appointmentEnd" type="time"></label><label>Reminder<select id="appointmentReminder"><option value="0">At the time</option><option value="15">15 minutes before</option><option value="30">30 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select></label></div>
-        <label>Location or meeting platform<input id="appointmentLocation" type="text" placeholder="For example: Zoom, Camera Club or GP surgery"></label>
-        <label>Link (optional)<input id="appointmentLink" type="text" inputmode="url" placeholder="https://..."></label>
-        <label>Repeat<select id="appointmentRepeat"><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="fortnightly">Fortnightly</option><option value="monthlyDate">Monthly on this date</option><option value="monthlyOrdinal">Monthly by weekday</option><option value="yearly">Yearly</option><option value="selectedDates">Selected extra dates</option></select></label>
-        <div id="appointmentMonthlyPattern" class="hidden two-column-fields"><label>Which occurrence?<select id="appointmentOrdinal"><option value="1">First</option><option value="2">Second</option><option value="3">Third</option><option value="4">Fourth</option><option value="5">Fifth</option></select></label><label>Weekday<select id="appointmentWeekday"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></label></div>
-        <label>Stop repeating after (optional)<input id="appointmentEndDate" type="date"></label>
-        <label id="appointmentCustomDatesLabel" class="hidden">Extra dates, one per line<textarea id="appointmentCustomDates" rows="4" placeholder="2026-08-31"></textarea><span class="field-help">Useful for selected fifth Mondays or occasional extra meetings.</span></label>
-      </div>
-
       <label id="leadLabel" class="hidden">
         Put into the schedule this many days before
         <input id="leadDays" type="number" min="0" max="365" value="7">
@@ -370,7 +363,7 @@
 
       <div class="dialog-actions">
         <button type="button" class="secondary-button" onclick="closeAddDialog()">Cancel</button>
-        <button type="button" id="saveItemButton" onclick="saveCurrentItem()">Save item</button>
+        <button type="submit">Save item</button>
       </div>
     </form>
   </dialog>
@@ -380,14 +373,14 @@
     <form id="captureForm">
       <input id="captureId" type="hidden"><input id="captureType" type="hidden" value="inbox">
       <div class="sheet-handle"></div>
-      <div class="dialog-header"><div><p class="eyebrow">Quick capture</p><h2 id="captureTitle">Capture to Brain Inbox</h2></div><button type="button" class="dialog-close" onclick="closeCaptureDialog()" aria-label="Close">×</button></div>
+      <div class="dialog-header"><div><p class="eyebrow">Quick capture</p><h2 id="captureTitle">Capture a thought</h2></div><button type="button" class="dialog-close" onclick="closeCaptureDialog()" aria-label="Close">×</button></div>
       <label>What is on your mind?<div class="capture-input-row"><input id="captureName" type="text" maxlength="160" required placeholder="Type it here…"><button type="button" class="voice-button capture-mic" onclick="startVoiceCapture()" aria-label="Dictate" title="Dictate">🎤</button></div></label>
       <label>Note (optional)<textarea id="captureNote" rows="3" placeholder="Any detail you do not want to forget"></textarea></label>
       <label id="waitingDateLabel" class="hidden">Review date<input id="captureDate" type="date"></label>
-      <div id="captureConvertActions" class="convert-actions hidden"><button type="button" onclick="saveCaptureAs('todo')">Save as to-do</button><button type="button" onclick="saveCaptureAs('appointment')">Save as appointment</button><button type="button" onclick="saveCaptureAs('project')">Save as project</button><button type="button" onclick="saveCaptureAs('waiting')">Save as Waiting For</button></div><div class="dialog-actions"><button type="button" class="secondary-button" onclick="closeCaptureDialog()">Cancel</button><button type="button" onclick="saveCapture()">Save thought</button></div>
+      <div id="captureConvertActions" class="convert-actions hidden"><button type="button" onclick="saveCaptureAs('todo')">Save as to-do</button><button type="button" onclick="saveCaptureAs('project')">Save as project</button><button type="button" onclick="saveCaptureAs('waiting')">Save as Waiting For</button></div><div class="dialog-actions"><button type="button" class="secondary-button" onclick="closeCaptureDialog()">Cancel</button><button type="button" onclick="saveCapture()">Save thought</button></div>
     </form>
   </dialog>
 
-  <script src="app.js?v=11.5"></script>
+  <script src="app.js?v=11.6"></script>
 </body>
 </html>

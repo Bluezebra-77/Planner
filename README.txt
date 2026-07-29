@@ -1,3 +1,2 @@
-My Life Planner V11.5 — Appointments and Lists Fix
-
-Appointments now appear in Today & Beyond, Today and This Week. My Lists includes a dedicated Appointments shortcut and all main management lists. The service worker has been updated to prevent stale mixed-version files.
+My Life Planner V11.6 Core Rebuild
+Built from the stable V10.3 foundation. Includes reliable editable lists, Brain Inbox conversion, appointments, Today/This Week integration and Today & Beyond timeline.
