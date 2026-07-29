@@ -134,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "11.2";
+const APP_VERSION = "11.4";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -1282,7 +1282,8 @@ addForm.addEventListener("submit",event=>{
     const customDates=document.getElementById("appointmentCustomDates").value.split(/\n|,/).map(x=>x.trim()).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x));
     const payload={id:id||uid(),name,details,date,startTime:document.getElementById("appointmentStart").value||"",endTime:document.getElementById("appointmentEnd").value||"",location:document.getElementById("appointmentLocation").value.trim(),link:document.getElementById("appointmentLink").value.trim(),reminderMinutes:Number(document.getElementById("appointmentReminder").value||0),repeat,ordinal:Number(document.getElementById("appointmentOrdinal").value||1),weekday:Number(document.getElementById("appointmentWeekday").value||1),repeatEndDate:document.getElementById("appointmentEndDate").value||null,customDates};
     if(id)data.appointments[data.appointments.findIndex(x=>x.id===id)]=payload;else data.appointments.push(payload);
-    saveData(); closeAddDialog(); renderAll(); return;
+    if(pendingInboxAppointmentId){data.inbox=data.inbox.filter(x=>x.id!==pendingInboxAppointmentId);pendingInboxAppointmentId='';}
+    saveData(); closeAddDialog(); renderAll(); showSaved('Appointment saved and added to timeline'); return;
   }
 
   if(type==="cleaning") {
@@ -1485,7 +1486,7 @@ function applyAppUpdate() {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.2", { updateViaCache: "none" });
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=11.4", { updateViaCache: "none" });
       if (registration.waiting) {
         waitingServiceWorker = registration.waiting;
         document.getElementById("updateButton")?.classList.remove("hidden");
@@ -1628,6 +1629,8 @@ function serializeStepBuilder(builderId){const box=document.getElementById(build
 function syncStepBuilders(){const a=document.getElementById('projectSteps');const b=document.getElementById('itemSteps');if(a)a.value=serializeStepBuilder('projectStepsBuilder');if(b)b.value=serializeStepBuilder('itemStepsBuilder');}
 
 
+let pendingInboxAppointmentId = '';
+
 /* ===== Version 10 experience ===== */
 function dueClass(value){
   if(!value) return 'status-future';
@@ -1642,7 +1645,8 @@ function focusCandidateRows(){
   data.cleaningTasks.filter(x=>isDueTodayOrEarlier(x.nextDue)).forEach(x=>rows.push({name:x.name,meta:`Cleaning · ${x.room||'Home'}`,dueDate:x.nextDue,kind:'Cleaning',action:()=>completeCleaning(x.id),open:()=>editCleaning(x.id),score:-2}));
   data.projects.filter(x=>!x.completed).forEach(p=>{const s=(p.steps||[]).find(x=>!x.completed);if(s)rows.push({name:s.name,meta:`Next action · ${p.name}`,dueDate:s.dueDate,kind:'Project',action:()=>toggleStep(p.id,s.id),open:()=>editStep(p.id,s.id),score:s.dueDate?daysBetween(today,dateOnly(s.dueDate)):12});});
   data.waiting.filter(x=>!x.completed&&x.reviewDate&&dateOnly(x.reviewDate)<=today).forEach(x=>rows.push({name:x.name,meta:'Waiting for · review due',dueDate:x.reviewDate,kind:'Waiting',open:()=>editCapture('waiting',x.id),score:0}));
-  return rows.sort((a,b)=>a.score-b.score).slice(0,7);
+  appointmentReminderItems(today,today).forEach(x=>rows.push({name:x.name,meta:x.source,dueDate:x.dueDate,kind:'Appointment',open:()=>editAppointment(x.id),score:-5}));
+  return rows.sort((a,b)=>a.score-b.score).slice(0,9);
 }
 function makeV10Row(item,{complete=true,menu='' }={}){
  const row=document.createElement('div'); row.className=`v10-row ${dueClass(item.dueDate)}`;
@@ -1673,14 +1677,32 @@ function captureDraft(){return {type:document.getElementById('captureType').valu
 function saveCapture(targetType=''){
  const d=captureDraft(); if(!d.name){document.getElementById('captureName').focus();return false;}
  const type=targetType||d.type;
+ if(type==='appointment'){
+   pendingInboxAppointmentId=d.id||'';
+   closeCaptureDialog();
+   openAppointmentDialog();
+   document.getElementById('itemName').value=d.name;
+   document.getElementById('itemDetails').value=d.note||'';
+   document.getElementById('dialogTitle').textContent='Create appointment from thought';
+   return true;
+ }
  if(type==='todo'){data.todos.unshift({id:uid(),name:d.name,details:d.note,timingType:'none',dueDate:'',completed:false,steps:[]});}
  else if(type==='project'){data.projects.unshift({id:uid(),name:d.name,details:d.note,timingType:'none',dueDate:'',completed:false,steps:[]});}
  else {const list=data[type]||(data[type]=[]),existing=list.find(x=>x.id===d.id);const record={id:existing?.id||uid(),name:d.name,note:d.note,reviewDate:type==='waiting'?d.reviewDate:'',completed:existing?.completed||false,createdAt:existing?.createdAt||new Date().toISOString()};if(existing)Object.assign(existing,record);else list.unshift(record);}
- saveData();closeCaptureDialog();renderAll();showSaved(targetType?`Saved as ${targetType==='waiting'?'Waiting For':targetType}`:'Saved');return true;
+ if(targetType && d.type==='inbox' && d.id) data.inbox=data.inbox.filter(x=>x.id!==d.id);
+ saveData();closeCaptureDialog();renderAll();showSaved(targetType?`Saved as ${type==='waiting'?'Waiting For':type}`:'Saved');return true;
 }
 function saveCaptureAs(type){saveCapture(type);}
 function convertInbox(id,type){const x=data.inbox.find(x=>x.id===id);if(!x)return;data.inbox=data.inbox.filter(i=>i.id!==id);if(type==='todo')data.todos.unshift({id:uid(),name:x.name,details:x.note||'',timingType:'none',dueDate:'',completed:false,steps:[]});else if(type==='project')data.projects.unshift({id:uid(),name:x.name,details:x.note||'',timingType:'none',dueDate:'',completed:false,steps:[]});else data.waiting.unshift({id:uid(),name:x.name,note:x.note||'',reviewDate:'',completed:false});saveData();renderAll();showSaved('Thought converted');}
-function renderInbox(){const full=document.getElementById('inboxArea'),preview=document.getElementById('inboxPreviewArea');[full,preview].forEach(area=>{if(!area)return;area.innerHTML='';const items=area===preview?data.inbox.slice(0,3):data.inbox;if(!items.length){area.innerHTML='<div class="empty-state">Nothing waiting in your inbox.</div>';return;}items.forEach(x=>area.appendChild(makeV10Row({name:x.name,meta:x.note||'Unsorted thought',open:()=>editCapture('inbox',x.id)},{complete:false,menu:compactMenu(`<button onclick="closeAnchoredMenu();editCapture('inbox','${x.id}')">Edit</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','todo')">Make a to-do</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','project')">Make a project</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','waiting')">Move to Waiting For</button><button class="danger-text" onclick="closeAnchoredMenu();deleteCapture('inbox','${x.id}')">Delete</button>`,x.name)})));});}
+function convertInboxToAppointment(id){
+ const x=data.inbox.find(i=>i.id===id); if(!x)return;
+ pendingInboxAppointmentId=id;
+ openAppointmentDialog();
+ document.getElementById('itemName').value=x.name||'';
+ document.getElementById('itemDetails').value=x.note||'';
+ document.getElementById('dialogTitle').textContent='Create appointment from Brain Inbox';
+}
+function renderInbox(){const full=document.getElementById('inboxArea'),preview=document.getElementById('inboxPreviewArea');[full,preview].forEach(area=>{if(!area)return;area.innerHTML='';const items=area===preview?data.inbox.slice(0,3):data.inbox;if(!items.length){area.innerHTML='<div class="empty-state">Nothing waiting in your inbox.</div>';return;}items.forEach(x=>area.appendChild(makeV10Row({name:x.name,meta:x.note||'Unsorted thought',open:()=>editCapture('inbox',x.id)},{complete:false,menu:compactMenu(`<button onclick="closeAnchoredMenu();editCapture('inbox','${x.id}')">Edit</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','todo')">Make a to-do</button><button onclick="closeAnchoredMenu();editCapture('inbox','${x.id}')">Organise / choose type</button><button onclick="closeAnchoredMenu();convertInboxToAppointment('${x.id}')">Make an appointment</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','project')">Make a project</button><button onclick="closeAnchoredMenu();convertInbox('${x.id}','waiting')">Move to Waiting For</button><button class="danger-text" onclick="closeAnchoredMenu();deleteCapture('inbox','${x.id}')">Delete</button>`,x.name)})));});}
 function renderWaiting(){const area=document.getElementById('waitingArea');if(!area)return;area.innerHTML='';if(!data.waiting.length){area.innerHTML='<div class="empty-state">Nothing being waited for.</div>';return;}data.waiting.forEach(x=>area.appendChild(makeV10Row({name:x.name,meta:x.reviewDate?`Review ${formatDate(x.reviewDate)}`:(x.note||'No review date'),dueDate:x.reviewDate,action:()=>completeWaiting(x.id),open:()=>editCapture('waiting',x.id)},{menu:compactMenu(`<button onclick="closeAnchoredMenu();editCapture('waiting','${x.id}')">Edit</button><button onclick="closeAnchoredMenu();completeWaiting('${x.id}')">${x.completed?'Mark active':'Complete'}</button><button class="danger-text" onclick="closeAnchoredMenu();deleteCapture('waiting','${x.id}')">Delete</button>`,x.name)})));}
 function startVoiceCapture(type=''){
  if(type) openCaptureDialog(type);
@@ -1701,7 +1723,9 @@ function updateListHubCounts(){
  Object.entries(counts).forEach(([id,n])=>{const el=document.getElementById(id);if(el)el.textContent=`${n} ${n===1?'item':'items'}`;});
 }
 function jumpToList(id){
- const el=document.getElementById(id); if(!el)return; el.scrollIntoView({behavior:'smooth',block:'start'}); el.classList.add('list-highlight'); setTimeout(()=>el.classList.remove('list-highlight'),900);
+ showAppView('tasks');
+ const el=document.getElementById(id); if(!el)return;
+ requestAnimationFrame(()=>{el.scrollIntoView({behavior:'smooth',block:'start'});el.classList.add('list-highlight');setTimeout(()=>el.classList.remove('list-highlight'),1200);});
 }
 function filterMyLists(query=''){
  const q=String(query).trim().toLowerCase();
@@ -1719,18 +1743,25 @@ function nthWeekdayOfMonth(year,month,weekday,ordinal){
  const first=new Date(year,month,1,12);let day=1+((weekday-first.getDay()+7)%7)+(ordinal-1)*7;const d=new Date(year,month,day,12);return d.getMonth()===month?d:null;
 }
 function appointmentDates(item,from,to){
- const out=[],start=dateOnly(item.date);if(!start)return out;const end=item.repeatEndDate?dateOnly(item.repeatEndDate):to;
- const upper=end&&end<to?end:to;const add=d=>{if(d>=from&&d<=upper)out.push(new Date(d));};
- if(item.repeat==='selectedDates'){[item.date,...(item.customDates||[])].forEach(v=>{const d=dateOnly(v);if(d)add(d);});return out;}
- if(item.repeat==='none'){add(start);return out;}
- if(item.repeat==='monthlyOrdinal'){
-   let cursor=new Date(from.getFullYear(),from.getMonth(),1,12);const last=new Date(upper.getFullYear(),upper.getMonth(),1,12);
+ const out=[];
+ const start=dateOnly(item.date);
+ if(!start)return out;
+ const lower=new Date(from); lower.setHours(0,0,0,0);
+ const requestedUpper=new Date(to); requestedUpper.setHours(23,59,59,999);
+ const repeatUpper=item.repeatEndDate?dateOnly(item.repeatEndDate):requestedUpper;
+ const upper=repeatUpper&&repeatUpper<requestedUpper?repeatUpper:requestedUpper;
+ const add=d=>{const copy=new Date(d);copy.setHours(12,0,0,0);if(copy>=lower&&copy<=upper&&!out.some(x=>isoFromDate(x)===isoFromDate(copy)))out.push(copy);};
+ const repeat=item.repeat||'none';
+ if(repeat==='selectedDates'){[item.date,...(item.customDates||[])].forEach(v=>{const d=dateOnly(v);if(d)add(d);});return out;}
+ if(repeat==='none'){add(start);return out;}
+ if(repeat==='monthlyOrdinal'){
+   let cursor=new Date(start.getFullYear(),start.getMonth(),1,12);const last=new Date(upper.getFullYear(),upper.getMonth(),1,12);
    while(cursor<=last){const d=nthWeekdayOfMonth(cursor.getFullYear(),cursor.getMonth(),Number(item.weekday??start.getDay()),Number(item.ordinal??1));if(d&&d>=start)add(d);cursor.setMonth(cursor.getMonth()+1);}return out;
  }
- const step=item.repeat==='daily'?1:item.repeat==='fortnightly'?14:item.repeat==='weekly'?7:null;
- if(step){let d=new Date(start);while(d<from)d.setDate(d.getDate()+step);while(d<=upper){add(d);d.setDate(d.getDate()+step);}return out;}
- if(item.repeat==='monthlyDate'){let d=new Date(start);while(d<from)d.setMonth(d.getMonth()+1);while(d<=upper){add(d);d=new Date(d.getFullYear(),d.getMonth()+1,start.getDate(),12);}return out;}
- if(item.repeat==='yearly'){let d=new Date(start);while(d<from)d.setFullYear(d.getFullYear()+1);while(d<=upper){add(d);d.setFullYear(d.getFullYear()+1);}return out;}
+ const step=repeat==='daily'?1:repeat==='fortnightly'?14:repeat==='weekly'?7:null;
+ if(step){let d=new Date(start);while(d<lower)d.setDate(d.getDate()+step);while(d<=upper){add(d);d.setDate(d.getDate()+step);}return out;}
+ if(repeat==='monthlyDate'){let y=start.getFullYear(),m=start.getMonth();while(new Date(y,m,start.getDate(),12)<lower){m++;}while(true){const d=new Date(y,m,start.getDate(),12);if(d>upper)break;if(d.getDate()===start.getDate())add(d);m++;}return out;}
+ if(repeat==='yearly'){let d=new Date(start);while(d<lower)d.setFullYear(d.getFullYear()+1);while(d<=upper){add(d);d.setFullYear(d.getFullYear()+1);}return out;}
  add(start);return out;
 }
 function appointmentOccurrences(anchor=new Date(),monthsAhead=18){const from=new Date(anchor);from.setHours(0,0,0,0);from.setDate(from.getDate()-31);const to=new Date(anchor);to.setMonth(to.getMonth()+monthsAhead);to.setHours(23,59,59,999);const rows=[];data.appointments.forEach(item=>appointmentDates(item,from,to).forEach(d=>rows.push({item,date:isoFromDate(d)})));return rows.sort((a,b)=>xDate(a.date)-xDate(b.date));}

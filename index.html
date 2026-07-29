@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Life Planner</title>
-  <link rel="stylesheet" href="style.css?v=11.2">
-  <link rel="manifest" href="manifest.json?v=11.2">
+  <link rel="stylesheet" href="style.css?v=11.4">
+  <link rel="manifest" href="manifest.json?v=11.4">
   <meta name="theme-color" content="#1769c2">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -18,7 +18,7 @@
     <header class="app-header">
       <div>
         <p class="eyebrow">My flexible daily planner</p>
-        <h1 class="brand-title"><img src="icon-192.png" class="header-zebra" alt=""><span id="plannerTitle">My Life Planner</span> <span class="brand-77">77</span> <span class="version-badge">V11.2</span></h1>
+        <h1 class="brand-title"><img src="icon-192.png" class="header-zebra" alt=""><span id="plannerTitle">My Life Planner</span> <span class="brand-77">77</span> <span class="version-badge">V11.4</span></h1>
         <p id="todayDate" class="date-line"></p>
       </div>
       <div class="header-actions">
@@ -77,7 +77,7 @@
     </section>
     <section class="panel app-view-section lists-hub" data-view="tasks">
       <div class="section-heading"><div><p class="eyebrow">Control centre</p><h2>My Lists</h2></div></div>
-      <p class="card-meta">Browse and manage everything you have saved. Search across all lists or jump straight to one collection.</p>
+      <p class="card-meta">Choose a list below to open its full editable management section. Every saved item remains available here, including past information.</p>
       <label class="list-search-label">Search all lists<input id="globalListSearch" type="search" placeholder="Search tasks, projects, thoughts…" oninput="filterMyLists(this.value)"></label>
       <div class="list-hub-grid">
         <button type="button" onclick="jumpToList('todoListSection')"><span>✅</span><strong>To-dos</strong><small id="todoHubCount">0 items</small></button>
@@ -220,7 +220,7 @@
         <details class="storage-details"><summary>Where can I find my backups?</summary><p><strong>Automatic daily backups:</strong> stored privately inside this browser on this device.</p><p><strong>Visible backup files:</strong> choose Save backup file or Share backup, then save to iCloud Drive, OneDrive or Files.</p></details>
         <div class="card-actions"><button type="button" onclick="exportPlanner()">Save backup file</button><button type="button" onclick="sharePlannerBackup()">Share backup</button><button type="button" class="secondary-button" onclick="document.getElementById('importFile').click()">Import backup</button><input id="importFile" class="hidden" type="file" accept=".json,application/json" onchange="importPlanner(event)"></div>
         <p id="storageStatus" class="storage-status"></p><p id="saveIndicator" class="save-indicator" aria-live="polite">Ready</p>
-        <details class="storage-details"><summary>About My Life Planner</summary><p><strong>Version:</strong> 11.2</p><p><strong>Updated:</strong> 29 July 2026</p><p><strong>Designed by Blue Zebra 77</strong></p><p>Updates change the app layout but do not intentionally replace your personal information. Your data stays in this browser unless you export it.</p></details>
+        <details class="storage-details"><summary>About My Life Planner</summary><p><strong>Version:</strong> 11.4</p><p><strong>Updated:</strong> 29 July 2026</p><p><strong>Designed by Blue Zebra 77</strong></p><p>Updates change the app layout but do not intentionally replace your personal information. Your data stays in this browser unless you export it.</p></details>
       </div>
     </dialog>
 
@@ -384,10 +384,10 @@
       <label>What is on your mind?<div class="capture-input-row"><input id="captureName" type="text" maxlength="160" required placeholder="Type it here…"><button type="button" class="voice-button capture-mic" onclick="startVoiceCapture()" aria-label="Dictate" title="Dictate">🎤</button></div></label>
       <label>Note (optional)<textarea id="captureNote" rows="3" placeholder="Any detail you do not want to forget"></textarea></label>
       <label id="waitingDateLabel" class="hidden">Review date<input id="captureDate" type="date"></label>
-      <div id="captureConvertActions" class="convert-actions hidden"><button type="button" onclick="saveCaptureAs('todo')">Save as to-do</button><button type="button" onclick="saveCaptureAs('project')">Save as project</button><button type="button" onclick="saveCaptureAs('waiting')">Save as Waiting For</button></div><div class="dialog-actions"><button type="button" class="secondary-button" onclick="closeCaptureDialog()">Cancel</button><button type="button" onclick="saveCapture()">Save thought</button></div>
+      <div id="captureConvertActions" class="convert-actions hidden"><button type="button" onclick="saveCaptureAs('todo')">Save as to-do</button><button type="button" onclick="saveCaptureAs('appointment')">Save as appointment</button><button type="button" onclick="saveCaptureAs('project')">Save as project</button><button type="button" onclick="saveCaptureAs('waiting')">Save as Waiting For</button></div><div class="dialog-actions"><button type="button" class="secondary-button" onclick="closeCaptureDialog()">Cancel</button><button type="button" onclick="saveCapture()">Save thought</button></div>
     </form>
   </dialog>
 
-  <script src="app.js?v=11.2"></script>
+  <script src="app.js?v=11.4"></script>
 </body>
 </html>

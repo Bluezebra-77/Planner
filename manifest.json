@@ -1,8 +1,8 @@
 {
-  "name": "My Life Planner V11.2",
+  "name": "My Life Planner V11.4",
   "short_name": "Life Planner",
   "description": "Your external brain: Focus Today, Brain Inbox, My Lists, Life Timeline, Morning Briefing and Weekly Review.",
-  "start_url": "./index.html?v=11.0",
+  "start_url": "./index.html?v=11.4",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f8ff",
