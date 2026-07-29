@@ -44,13 +44,14 @@ function normaliseLegacyShape(value = {}) {
     todos: source.todos || source.todoItems || source.tasks || [],
     projects: source.projects || source.projectItems || [],
     annualDates: source.annualDates || source.birthdays || source.annualReminders || [],
+    appointments: source.appointments || source.events || source.calendarEvents || [],
     cleaningTasks: source.cleaningTasks || source.cleaning || source.cleaningJobs || source.householdTasks || []
   };
 }
 
 function scoreData(candidate = {}) {
   const shaped = normaliseLegacyShape(candidate);
-  return [shaped.todos, shaped.projects, shaped.annualDates, shaped.cleaningTasks]
+  return [shaped.todos, shaped.projects, shaped.annualDates, shaped.appointments, shaped.cleaningTasks]
     .reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
 }
 
@@ -112,6 +113,7 @@ function getData() {
     todos: mergeUniqueLists(candidates,"todos"),
     projects: mergeUniqueLists(candidates,"projects"),
     annualDates: mergeUniqueLists(candidates,"annualDates"),
+    appointments: mergeUniqueLists(candidates,"appointments"),
     cleaningTasks: mergeUniqueLists(candidates,"cleaningTasks"),
     inbox: mergeUniqueLists(candidates,"inbox"),
     waiting: mergeUniqueLists(candidates,"waiting")
@@ -132,7 +134,7 @@ const RECOVERY_KEY = "lifePlannerDailyBackups";
 const LEGACY_RECOVERY_KEYS = ["lifePlannerDailyBackupsV9"];
 const SETTINGS_KEY = "lifePlannerSettings";
 const LEGACY_SETTINGS_KEYS = ["lifePlannerSettingsV9","lifePlannerSettingsV8","lifePlannerSettingsV7"];
-const APP_VERSION = "11.0";
+const APP_VERSION = "11.1";
 let saveIndicatorTimer = null;
 
 function normaliseData(loaded = {}) {
@@ -140,6 +142,7 @@ function normaliseData(loaded = {}) {
     todos: Array.isArray(loaded.todos) ? loaded.todos : [],
     projects: Array.isArray(loaded.projects) ? loaded.projects : [],
     annualDates: Array.isArray(loaded.annualDates) ? loaded.annualDates : [],
+    appointments: Array.isArray(loaded.appointments) ? loaded.appointments : [],
     cleaningTasks: Array.isArray(loaded.cleaningTasks) ? loaded.cleaningTasks : Array.isArray(loaded.cleaning) ? loaded.cleaning : Array.isArray(loaded.cleaningJobs) ? loaded.cleaningJobs : [],
     inbox: Array.isArray(loaded.inbox) ? loaded.inbox : [],
     waiting: Array.isArray(loaded.waiting) ? loaded.waiting : [],
@@ -1091,6 +1094,7 @@ function deleteTodo(id) { data.todos=data.todos.filter(x=>x.id!==id); saveData()
 function toggleProject(id) { const item=data.projects.find(x=>x.id===id); if(item)item.completed=!item.completed; saveData(); renderAll(); }
 function deleteProject(id) { data.projects=data.projects.filter(x=>x.id!==id); saveData(); renderAll(); }
 function deleteAnnual(id) { data.annualDates=data.annualDates.filter(x=>x.id!==id); saveData(); renderAll(); }
+function deleteAppointment(id) { if(!confirm("Delete this appointment or event?")) return; data.appointments=data.appointments.filter(x=>x.id!==id); saveData(); renderAll(); }
 
 function toggleStep(projectId,stepId) {
   const project=data.projects.find(x=>x.id===projectId);
@@ -1120,6 +1124,10 @@ function clearForm() {
   document.getElementById("monthsCount").value=3;
   document.getElementById("leadDays").value=7;
   document.getElementById("annualReminderDays").value=7;
+  document.getElementById("appointmentReminder").value="30";
+  document.getElementById("appointmentRepeat").value="none";
+  document.getElementById("appointmentOrdinal").value="1";
+  document.getElementById("appointmentWeekday").value="1";
   document.getElementById("cleaningFrequency").value="weekly";
   document.getElementById("cleaningStartDate").value=new Date().toISOString().slice(0,10);
   const itemSteps=document.getElementById("itemSteps"); if(itemSteps)itemSteps.value="";
@@ -1137,6 +1145,7 @@ function openAddDialog(type="todo",projectId="") {
 }
 
 function openAnnualDialog() { openAddDialog("annual"); }
+function openAppointmentDialog() { openAddDialog("appointment"); }
 function closeAddDialog() { dialog.close(); }
 
 function populateProjectPicker(selectedId="") {
@@ -1165,10 +1174,13 @@ function updateFormVisibility() {
   document.getElementById("cleaningStartLabel").classList.toggle("hidden",type!=="cleaning");
   document.getElementById("annualDateLabel").classList.toggle("hidden",type!=="annual");
   document.getElementById("annualReminderLabel").classList.toggle("hidden",type!=="annual");
-  document.getElementById("dateLabel").classList.toggle("hidden",timing!=="date" || type==="annual" || routine);
+  document.getElementById("appointmentFields").classList.toggle("hidden",type!=="appointment");
+  document.getElementById("appointmentMonthlyPattern").classList.toggle("hidden",type!=="appointment" || document.getElementById("appointmentRepeat").value!=="monthlyOrdinal");
+  document.getElementById("appointmentCustomDatesLabel").classList.toggle("hidden",type!=="appointment" || document.getElementById("appointmentRepeat").value!=="selectedDates");
+  document.getElementById("dateLabel").classList.toggle("hidden",timing!=="date" || type==="annual" || type==="appointment" || routine);
   document.getElementById("monthsLabel").classList.toggle("hidden",timing!=="months" || type==="annual" || routine);
   document.getElementById("leadLabel").classList.toggle("hidden",!(["date","months"].includes(timing)) || type==="annual" || routine);
-  timingType.closest("label").classList.toggle("hidden",type==="annual" || type==="cleaning" || routine);
+  timingType.closest("label").classList.toggle("hidden",type==="annual" || type==="cleaning" || type==="appointment" || routine);
   document.getElementById("detailsLabel").querySelector("textarea").placeholder =
     routine ? "For example: 10 minutes, after breakfast, or any helpful note" : "Notes, contact details, what needs doing...";
 }
@@ -1178,6 +1190,7 @@ itemType.addEventListener("change",()=>{
   updateFormVisibility();
 });
 timingType.addEventListener("change",updateFormVisibility);
+document.getElementById("appointmentRepeat")?.addEventListener("change",updateFormVisibility);
 
 function loadCommon(item,type,parentId="") {
   clearForm();
@@ -1220,6 +1233,28 @@ function editAnnual(id) {
   dialog.showModal();
 }
 
+function editAppointment(id) {
+  const item=data.appointments.find(x=>x.id===id);
+  if(!item)return;
+  clearForm(); itemType.value="appointment";
+  document.getElementById("editingId").value=item.id;
+  document.getElementById("itemName").value=item.name||"";
+  document.getElementById("itemDetails").value=item.details||"";
+  document.getElementById("appointmentDate").value=item.date||"";
+  document.getElementById("appointmentStart").value=item.startTime||"";
+  document.getElementById("appointmentEnd").value=item.endTime||"";
+  document.getElementById("appointmentLocation").value=item.location||"";
+  document.getElementById("appointmentLink").value=item.link||"";
+  document.getElementById("appointmentReminder").value=String(item.reminderMinutes??30);
+  document.getElementById("appointmentRepeat").value=item.repeat||"none";
+  document.getElementById("appointmentOrdinal").value=String(item.ordinal??1);
+  document.getElementById("appointmentWeekday").value=String(item.weekday??1);
+  document.getElementById("appointmentEndDate").value=item.repeatEndDate||"";
+  document.getElementById("appointmentCustomDates").value=(item.customDates||[]).join("\n");
+  document.getElementById("dialogTitle").textContent="Edit appointment";
+  updateFormVisibility(); dialog.showModal();
+}
+
 addForm.addEventListener("submit",event=>{
   event.preventDefault();
   const type=itemType.value;
@@ -1237,6 +1272,15 @@ addForm.addEventListener("submit",event=>{
     const payload = { id: id || uid(), title: name, time: details };
     if (id) list[list.findIndex(x => x.id === id)] = payload;
     else list.push(payload);
+    saveData(); closeAddDialog(); renderAll(); return;
+  }
+
+  if(type==="appointment") {
+    const date=document.getElementById("appointmentDate").value; if(!date)return;
+    const repeat=document.getElementById("appointmentRepeat").value;
+    const customDates=document.getElementById("appointmentCustomDates").value.split(/\n|,/).map(x=>x.trim()).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x));
+    const payload={id:id||uid(),name,details,date,startTime:document.getElementById("appointmentStart").value||"",endTime:document.getElementById("appointmentEnd").value||"",location:document.getElementById("appointmentLocation").value.trim(),link:document.getElementById("appointmentLink").value.trim(),reminderMinutes:Number(document.getElementById("appointmentReminder").value||0),repeat,ordinal:Number(document.getElementById("appointmentOrdinal").value||1),weekday:Number(document.getElementById("appointmentWeekday").value||1),repeatEndDate:document.getElementById("appointmentEndDate").value||null,customDates};
+    if(id)data.appointments[data.appointments.findIndex(x=>x.id===id)]=payload;else data.appointments.push(payload);
     saveData(); closeAddDialog(); renderAll(); return;
   }
 
@@ -1418,6 +1462,7 @@ function renderAll() {
   renderCleaningToday();
   renderTodos();
   renderAnnualDates();
+  renderAppointments();
   renderProjects();
   renderCleaning();
   renderMainOverview();
@@ -1637,7 +1682,7 @@ document.getElementById('captureForm')?.addEventListener('submit',e=>{e.preventD
 
 /* ===== Version 10.3 My Lists control centre ===== */
 function updateListHubCounts(){
- const counts={todoHubCount:data.todos.length,projectHubCount:data.projects.length,cleaningHubCount:data.cleaningTasks.length,annualHubCount:data.annualDates.length,inboxHubCount:data.inbox.length,waitingHubCount:data.waiting.length};
+ const counts={todoHubCount:data.todos.length,projectHubCount:data.projects.length,cleaningHubCount:data.cleaningTasks.length,annualHubCount:data.annualDates.length,appointmentHubCount:data.appointments.length,inboxHubCount:data.inbox.length,waitingHubCount:data.waiting.length};
  Object.entries(counts).forEach(([id,n])=>{const el=document.getElementById(id);if(el)el.textContent=`${n} ${n===1?'item':'items'}`;});
 }
 function jumpToList(id){
@@ -1653,6 +1698,30 @@ function filterMyLists(query=''){
 }
 
 
+
+function formatTime(value){if(!value)return '';const [h,m]=value.split(':').map(Number);const d=new Date();d.setHours(h,m||0,0,0);return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+function nthWeekdayOfMonth(year,month,weekday,ordinal){
+ const first=new Date(year,month,1,12);let day=1+((weekday-first.getDay()+7)%7)+(ordinal-1)*7;const d=new Date(year,month,day,12);return d.getMonth()===month?d:null;
+}
+function appointmentDates(item,from,to){
+ const out=[],start=dateOnly(item.date);if(!start)return out;const end=item.repeatEndDate?dateOnly(item.repeatEndDate):to;
+ const upper=end&&end<to?end:to;const add=d=>{if(d>=from&&d<=upper)out.push(new Date(d));};
+ if(item.repeat==='selectedDates'){[item.date,...(item.customDates||[])].forEach(v=>{const d=dateOnly(v);if(d)add(d);});return out;}
+ if(item.repeat==='none'){add(start);return out;}
+ if(item.repeat==='monthlyOrdinal'){
+   let cursor=new Date(from.getFullYear(),from.getMonth(),1,12);const last=new Date(upper.getFullYear(),upper.getMonth(),1,12);
+   while(cursor<=last){const d=nthWeekdayOfMonth(cursor.getFullYear(),cursor.getMonth(),Number(item.weekday??start.getDay()),Number(item.ordinal??1));if(d&&d>=start)add(d);cursor.setMonth(cursor.getMonth()+1);}return out;
+ }
+ const step=item.repeat==='daily'?1:item.repeat==='fortnightly'?14:item.repeat==='weekly'?7:null;
+ if(step){let d=new Date(start);while(d<from)d.setDate(d.getDate()+step);while(d<=upper){add(d);d.setDate(d.getDate()+step);}return out;}
+ if(item.repeat==='monthlyDate'){let d=new Date(start);while(d<from)d.setMonth(d.getMonth()+1);while(d<=upper){add(d);d=new Date(d.getFullYear(),d.getMonth()+1,start.getDate(),12);}return out;}
+ if(item.repeat==='yearly'){let d=new Date(start);while(d<from)d.setFullYear(d.getFullYear()+1);while(d<=upper){add(d);d.setFullYear(d.getFullYear()+1);}return out;}
+ add(start);return out;
+}
+function appointmentOccurrences(anchor=new Date(),monthsAhead=18){const from=new Date(anchor);from.setHours(0,0,0,0);from.setDate(from.getDate()-31);const to=new Date(anchor);to.setMonth(to.getMonth()+monthsAhead);to.setHours(23,59,59,999);const rows=[];data.appointments.forEach(item=>appointmentDates(item,from,to).forEach(d=>rows.push({item,date:isoFromDate(d)})));return rows.sort((a,b)=>xDate(a.date)-xDate(b.date));}
+function recurrenceText(item){return {none:'One-off',daily:'Daily',weekly:'Weekly',fortnightly:'Fortnightly',monthlyDate:'Monthly',monthlyOrdinal:`${['','First','Second','Third','Fourth','Fifth'][item.ordinal||1]} ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][item.weekday??1]}`,yearly:'Yearly',selectedDates:'Selected dates'}[item.repeat||'none']||'One-off';}
+function renderAppointments(){const area=document.getElementById('appointmentsArea');if(!area)return;area.innerHTML='';if(!data.appointments.length){area.innerHTML='<div class="empty-state">No appointments or events yet.</div>';return;}[...data.appointments].sort((a,b)=>xDate(a.date)-xDate(b.date)).forEach(item=>{const row=document.createElement('div');row.className='compact-manage-row appointment-manage-row';const time=[item.startTime&&formatTime(item.startTime),item.endTime&&formatTime(item.endTime)].filter(Boolean).join('–');row.innerHTML=`<button class="compact-row-main" onclick="editAppointment('${item.id}')"><span class="compact-row-title">📅 ${escapeHtml(item.name)}</span><span class="compact-row-meta">${formatDate(item.date)}${time?' · '+time:''}${item.location?' · '+escapeHtml(item.location):''} · ${recurrenceText(item)}</span></button>${compactMenu(`<button onclick="closeAnchoredMenu();editAppointment('${item.id}')">Edit</button>${item.link?`<button onclick="closeAnchoredMenu();window.open('${escapeHtml(item.link)}','_blank')">Open link</button>`:''}<button class="danger-text" onclick="closeAnchoredMenu();deleteAppointment('${item.id}')">Delete</button>`,item.name)}`;area.appendChild(row);});}
+
 /* ===== Version 11 external-brain features ===== */
 let timelineRange='all';
 function isoFromDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
@@ -1662,6 +1731,7 @@ function timelineItems(){
  data.projects.filter(x=>!x.completed).forEach(p=>{const s=(p.steps||[]).find(x=>!x.completed);if(s){const date=s.dueDate||p.dueDate;if(date)items.push({date,name:s.name,source:`Project: ${p.name}`,kind:'project',open:()=>editStep(p.id,s.id),complete:()=>toggleStep(p.id,s.id)});}else if(p.dueDate)items.push({date:p.dueDate,name:p.name,source:'Project review',kind:'project',open:()=>editProject(p.id)});});
  data.cleaningTasks.forEach(x=>{if(x.nextDue)items.push({date:x.nextDue,name:x.name,source:`Cleaning · ${x.room||'Home'}`,kind:'cleaning',open:()=>editCleaning(x.id),complete:()=>completeCleaning(x.id)});});
  data.waiting.filter(x=>!x.completed&&x.reviewDate).forEach(x=>items.push({date:x.reviewDate,name:x.name,source:'Waiting For review',kind:'waiting',open:()=>editCapture('waiting',x.id),complete:()=>completeWaiting(x.id)}));
+ appointmentOccurrences(new Date(),18).forEach(o=>items.push({date:o.date,name:o.item.name,source:`Appointment${o.item.startTime?' · '+formatTime(o.item.startTime):''}${o.item.location?' · '+o.item.location:''}`,kind:'appointment',open:()=>editAppointment(o.item.id)}));
  data.annualDates.forEach(x=>{const d=nextAnnualOccurrence(x.monthDay);if(d)items.push({date:isoFromDate(d),name:x.name,source:'Birthday / annual date',kind:'annual',open:()=>editAnnual(x.id)});});
  return items.filter(x=>x.date).sort((a,b)=>xDate(a.date)-xDate(b.date));
 }

@@ -113,6 +113,12 @@
       <div id="waitingArea" class="stack-list"></div>
     </section>
 
+    <section id="appointmentsListSection" class="panel app-view-section managed-list-section" data-view="tasks">
+      <div class="section-heading"><div><p class="eyebrow">Calendar commitments</p><h2>Appointments &amp; Events</h2></div><button class="section-plus" type="button" onclick="openAppointmentDialog()" aria-label="Add appointment">+</button></div>
+      <p class="card-meta">One-off and recurring meetings, Zoom calls, clubs and appointments. They appear automatically in Today &amp; Beyond.</p>
+      <div id="appointmentsArea" class="stack-list"></div>
+    </section>
+
     <section id="annualListSection" class="panel app-view-section managed-list-section" data-view="tasks">
       <div class="section-heading">
         <div>
@@ -153,7 +159,7 @@
 
     <section class="panel timeline-panel app-view-section" data-view="timeline">
       <div class="section-heading"><div><p class="eyebrow">Everything in date order</p><h2>Life Timeline</h2></div><button class="icon-button" type="button" onclick="renderTimeline()" aria-label="Refresh timeline">↻</button></div>
-      <p class="card-meta">Tasks, project actions, cleaning, annual dates and Waiting For reviews appear together automatically.</p>
+      <p class="card-meta">Tasks, appointments, project actions, cleaning, annual dates and Waiting For reviews appear together automatically.</p>
       <div class="timeline-filters"><button type="button" class="active" onclick="setTimelineRange('all',this)">All</button><button type="button" onclick="setTimelineRange('month',this)">Next 30 days</button><button type="button" onclick="setTimelineRange('future',this)">Later</button></div>
       <div id="timelineArea" class="timeline-area"></div>
     </section>
@@ -213,7 +219,7 @@
         <details class="storage-details"><summary>Where can I find my backups?</summary><p><strong>Automatic daily backups:</strong> stored privately inside this browser on this device.</p><p><strong>Visible backup files:</strong> choose Save backup file or Share backup, then save to iCloud Drive, OneDrive or Files.</p></details>
         <div class="card-actions"><button type="button" onclick="exportPlanner()">Save backup file</button><button type="button" onclick="sharePlannerBackup()">Share backup</button><button type="button" class="secondary-button" onclick="document.getElementById('importFile').click()">Import backup</button><input id="importFile" class="hidden" type="file" accept=".json,application/json" onchange="importPlanner(event)"></div>
         <p id="storageStatus" class="storage-status"></p><p id="saveIndicator" class="save-indicator" aria-live="polite">Ready</p>
-        <details class="storage-details"><summary>About My Life Planner</summary><p><strong>Version:</strong> 11.0</p><p><strong>Updated:</strong> 29 July 2026</p><p><strong>Designed by Blue Zebra 77</strong></p><p>Updates change the app layout but do not intentionally replace your personal information. Your data stays in this browser unless you export it.</p></details>
+        <details class="storage-details"><summary>About My Life Planner</summary><p><strong>Version:</strong> 11.1</p><p><strong>Updated:</strong> 29 July 2026</p><p><strong>Designed by Blue Zebra 77</strong></p><p>Updates change the app layout but do not intentionally replace your personal information. Your data stays in this browser unless you export it.</p></details>
       </div>
     </dialog>
 
@@ -269,6 +275,7 @@
           <option value="project">A new project</option>
           <option value="step">A step to an existing project</option>
           <option value="annual">A birthday or annual date</option>
+          <option value="appointment">An appointment or event</option>
           <option value="cleaning">A cleaning task</option>
           <option value="daily">A daily rhythm task</option>
           <option value="evening">An evening task</option>
@@ -344,6 +351,17 @@
         <input id="annualReminderDays" type="number" min="0" max="90" value="7">
       </label>
 
+      <div id="appointmentFields" class="hidden appointment-fields">
+        <div class="two-column-fields"><label>Date<input id="appointmentDate" type="date"></label><label>Start time<input id="appointmentStart" type="time"></label></div>
+        <div class="two-column-fields"><label>End time (optional)<input id="appointmentEnd" type="time"></label><label>Reminder<select id="appointmentReminder"><option value="0">At the time</option><option value="15">15 minutes before</option><option value="30">30 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select></label></div>
+        <label>Location or meeting platform<input id="appointmentLocation" type="text" placeholder="For example: Zoom, Camera Club or GP surgery"></label>
+        <label>Link (optional)<input id="appointmentLink" type="url" placeholder="https://..."></label>
+        <label>Repeat<select id="appointmentRepeat"><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="fortnightly">Fortnightly</option><option value="monthlyDate">Monthly on this date</option><option value="monthlyOrdinal">Monthly by weekday</option><option value="yearly">Yearly</option><option value="selectedDates">Selected extra dates</option></select></label>
+        <div id="appointmentMonthlyPattern" class="hidden two-column-fields"><label>Which occurrence?<select id="appointmentOrdinal"><option value="1">First</option><option value="2">Second</option><option value="3">Third</option><option value="4">Fourth</option><option value="5">Fifth</option></select></label><label>Weekday<select id="appointmentWeekday"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></label></div>
+        <label>Stop repeating after (optional)<input id="appointmentEndDate" type="date"></label>
+        <label id="appointmentCustomDatesLabel" class="hidden">Extra dates, one per line<textarea id="appointmentCustomDates" rows="4" placeholder="2026-08-31"></textarea><span class="field-help">Useful for selected fifth Mondays or occasional extra meetings.</span></label>
+      </div>
+
       <label id="leadLabel" class="hidden">
         Put into the schedule this many days before
         <input id="leadDays" type="number" min="0" max="365" value="7">
@@ -369,6 +387,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=11.0"></script>
+  <script src="app.js?v=11.1"></script>
 </body>
 </html>
