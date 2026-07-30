@@ -737,6 +737,7 @@ function editCleaning(id) {
 
 function renderCleaningToday() {
   const area = document.getElementById("cleaningTodayArea");
+  if (!area) return;
   const items = getWeeklyItems().filter(item => !item.annual && item.itemType !== "annual");
   area.innerHTML = "";
   if (!items.length) { area.innerHTML = `<div class="empty-state">No actionable tasks are due within the next week.</div>`; return; }
