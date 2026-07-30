@@ -1,11 +1,12 @@
-My Life Planner V17 — Lists Subsystem Rebuild
+My Life Planner V18 — Live Lists Controller Fix
 
-Built from the user-supplied V15 source. This release uses whole-number versioning.
+Built directly from the user-uploaded V15 source.
 
-Changes in V17:
-- Lists are rebuilt immediately after every save, complete or delete action.
-- Dynamically generated list controls use real JavaScript event listeners rather than inline handlers.
-- To-do, project-step and cleaning controls share the same live data used by Home.
-- Project completion is derived from all project steps.
-- The About screen and all active version references are synchronised to V17.
-- No saved-data structure was changed.
+Changes in V18:
+- Replaced To-do, Project and Cleaning list renderers with one final authoritative controller.
+- Added capture-phase delegated controls for Complete, Edit and Delete.
+- Repaints Lists immediately after the Add form finishes saving.
+- Uses string-safe ID comparisons for deletion and completion.
+- Repaints both Home and Lists after every list action.
+- Synchronised every active version reference to V18.
+- Saved-data structure remains unchanged.
